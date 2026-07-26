@@ -4,7 +4,7 @@ import PageHeader from '../components/common/PageHeader.jsx'
 import UploadCard from '../components/common/UploadCard.jsx'
 import MetricCard from '../components/common/MetricCard.jsx'
 import DataTable from '../components/common/DataTable.jsx'
-import { fetchSegmentationSamples, runInference } from '../services/api.js'
+import { getSegmentationSamples, getCategoryDistribution, runSegmentation } from '../services/api.js'
 import { formatClockTime, formatShortDate } from '../utils/format.js'
 
 const VIEW_TABS = [
@@ -32,9 +32,11 @@ export default function Segmentation() {
   const [activeView, setActiveView] = useState('original')
   const [result, setResult] = useState(null)
   const [samples, setSamples] = useState(null)
+  const [classes, setClasses] = useState(null)
 
   useEffect(() => {
-    fetchSegmentationSamples().then(setSamples)
+    getSegmentationSamples().then(setSamples)
+    getCategoryDistribution().then(setClasses)
   }, [])
 
   useEffect(() => {
@@ -61,7 +63,7 @@ export default function Segmentation() {
   async function handleRun() {
     if (!file) return
     setStatus('running')
-    const job = await runInference(file, 'segmentation')
+    const job = await runSegmentation(file)
     setResult({
       ...job,
       coveragePercent: (Math.random() * 6 + 4).toFixed(1),
@@ -87,7 +89,7 @@ export default function Segmentation() {
     <div>
       <PageHeader
         title="Segmentation"
-        subtitle="Upload a survey frame to generate a plastic coverage mask"
+        subtitle="Upload a Dal Lake survey frame to generate a plastic coverage mask"
       />
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-5">
@@ -121,6 +123,22 @@ export default function Segmentation() {
               <MetricCard label="Processing Time" value={result.processingTime} />
             </div>
           )}
+
+          {classes && (
+            <div className="mt-4 rounded-sm border border-border dark:border-night-border p-3">
+              <p className="mb-2 text-xs font-medium uppercase tracking-wide text-ink-faint dark:text-night-ink-faint">
+                Dal Lake waste classes
+              </p>
+              <div className="grid grid-cols-2 gap-x-3 gap-y-1.5">
+                {classes.map((entry) => (
+                  <div key={entry.category} className="flex items-center gap-1.5 text-xs text-ink-muted dark:text-night-ink-muted">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: entry.color }} />
+                    {entry.category}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="xl:col-span-3">
@@ -151,10 +169,15 @@ export default function Segmentation() {
               />
             ) : (
               <p className="px-6 text-center text-sm text-ink-faint dark:text-night-ink-faint">
-                Upload a frame on the left to preview the mask, overlay and heatmap outputs here
+                Upload a Dal Lake frame on the left to preview the mask, overlay and heatmap outputs here
               </p>
             )}
           </div>
+          <p className="mt-2 text-xs text-ink-faint dark:text-night-ink-faint">
+            Built on our Dal Lake annotation pipeline, 307 survey images and 1,760 polygon
+            annotations across the six classes above, labelled in Roboflow using COCO instance
+            segmentation.
+          </p>
         </div>
       </div>
 

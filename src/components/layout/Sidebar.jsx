@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import {
+  ArrowLeft,
   LayoutDashboard,
   Layers,
   ScanSearch,
@@ -23,7 +24,7 @@ const NAV_ITEMS = [
   { to: '/media-processing', label: 'Image and Video Processing', icon: Film, ready: false },
   { to: '/gis-mapping', label: 'GIS Mapping', icon: Map, ready: false },
   { to: '/validation', label: 'Validation', icon: BadgeCheck, ready: false },
-  { to: '/reports', label: 'Reports and Export', icon: FileOutput, ready: false }
+  { to: '/reports', label: 'Reports and Export', icon: FileOutput, ready: true }
 ]
 
 export default function Sidebar({ collapsed, variant = 'desktop' }) {
@@ -43,7 +44,7 @@ export default function Sidebar({ collapsed, variant = 'desktop' }) {
         {!collapsed && (
           <div className="leading-tight">
             <p className="text-sm font-semibold text-white">PlasticNet AI</p>
-            <p className="text-[11px] text-white/50">Kashmir Monitoring</p>
+            <p className="text-[11px] text-white/50">Authority Portal</p>
           </div>
         )}
       </div>
@@ -81,6 +82,13 @@ export default function Sidebar({ collapsed, variant = 'desktop' }) {
 
       {!collapsed && (
         <div className="border-t border-white/10 px-5 py-4">
+          <NavLink
+            to="/"
+            className="mb-2 flex items-center gap-1.5 text-xs font-medium text-white/60 hover:text-white"
+          >
+            <ArrowLeft size={13} />
+            Public site
+          </NavLink>
           <p className="text-[11px] leading-relaxed text-white/40">
             Built with NIT Srinagar for Dal Lake conservation monitoring
           </p>

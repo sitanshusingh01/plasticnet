@@ -4,6 +4,20 @@
 // for a live value once the FastAPI feed is wired up.
 export const REFERENCE_DATE = '2025-03-18T09:40:00+05:30'
 
+// Fixed facts about the training dataset behind the segmentation and
+// detection models. These numbers describe the dataset itself, not live
+// monitoring activity, and should stay untouched, they came directly from
+// the annotation team.
+export const datasetInfo = {
+  totalImages: 307,
+  totalAnnotations: 1760,
+  annotationType: 'COCO Instance Segmentation',
+  annotationTool: 'Roboflow',
+  location: 'Dal Lake, Srinagar',
+  affiliation: 'NIT Srinagar research project',
+  classes: ['Bottle', 'Cap', 'Wrapper', 'Polythene', 'Shoe', 'Foam']
+}
+
 export const kpiMetrics = [
   {
     id: 'total-objects',
@@ -21,7 +35,7 @@ export const kpiMetrics = [
     format: 'percent',
     change: -0.4,
     trend: 'down',
-    caption: 'Across all monitored water bodies'
+    caption: 'Across all six Dal Lake zones'
   },
   {
     id: 'polluted-area',
@@ -49,7 +63,7 @@ export const kpiMetrics = [
     value: 'Moderate',
     format: 'text',
     tone: 'warning',
-    caption: 'Weighted across 6 active zones'
+    caption: 'Weighted across 6 Dal Lake zones'
   },
   {
     id: 'today-detections',
@@ -107,13 +121,15 @@ export const weeklyCollection = [
   { week: 'Week 11', kilograms: 334 }
 ]
 
+// Category order and names match datasetInfo.classes exactly, these are
+// the six classes the segmentation model was trained on.
 export const categoryDistribution = [
+  { category: 'Bottle', count: 4489, share: 24.0, color: '#2E86C1' },
+  { category: 'Cap', count: 2384, share: 12.7, color: '#C0392B' },
+  { category: 'Wrapper', count: 3502, share: 18.7, color: '#F4D03F' },
   { category: 'Polythene', count: 5216, share: 27.8, color: '#1E8449' },
-  { category: 'Bottles', count: 4489, share: 24.0, color: '#2E86C1' },
-  { category: 'Wrappers', count: 3502, share: 18.7, color: '#F4D03F' },
-  { category: 'Caps', count: 2384, share: 12.7, color: '#C0392B' },
-  { category: 'Foam', count: 1741, share: 9.3, color: '#8A968D' },
-  { category: 'Footwear', count: 1410, share: 7.5, color: '#21618C' }
+  { category: 'Shoe', count: 1410, share: 7.5, color: '#21618C' },
+  { category: 'Foam', count: 1741, share: 9.3, color: '#8A968D' }
 ]
 
 export const coverageTrend = [
@@ -125,7 +141,10 @@ export const coverageTrend = [
   { month: 'Mar', coverage: 6.8 }
 ]
 
-export const monthlyPollutionTrend = [
+// This is a distinct measure from the Environmental Health Index above,
+// it tracks severity rather than water quality, higher means more waste
+// is being observed across the lake that month.
+export const pollutionIndexTrend = [
   { month: 'Oct', index: 64 },
   { month: 'Nov', index: 61 },
   { month: 'Dec', index: 58 },
@@ -134,33 +153,13 @@ export const monthlyPollutionTrend = [
   { month: 'Mar', index: 71 }
 ]
 
-export const monitoringRegions = [
+// Six zones inside Dal Lake itself, this is not a multi lake survey, every
+// zone below sits within the lake's own boundary or its immediate outflow.
+export const monitoringZones = [
   {
-    id: 'dal-lake',
-    name: 'Dal Lake',
+    id: 'northern-shore',
+    name: 'Northern Shore',
     zoneCode: 'ZN-01',
-    plasticShare: 8.2,
-    status: 'active',
-    lastScan: '2025-03-18T07:20:00+05:30',
-    risk: 'high',
-    coordinates: [34.1225, 74.8698],
-    cameras: 4
-  },
-  {
-    id: 'nigeen-lake',
-    name: 'Nigeen Lake',
-    zoneCode: 'ZN-02',
-    plasticShare: 4.1,
-    status: 'active',
-    lastScan: '2025-03-18T06:55:00+05:30',
-    risk: 'moderate',
-    coordinates: [34.1312, 74.8663],
-    cameras: 2
-  },
-  {
-    id: 'hazratbal',
-    name: 'Hazratbal',
-    zoneCode: 'ZN-03',
     plasticShare: 3.6,
     status: 'active',
     lastScan: '2025-03-17T18:10:00+05:30',
@@ -169,36 +168,58 @@ export const monitoringRegions = [
     cameras: 2
   },
   {
-    id: 'nishat',
-    name: 'Nishat',
-    zoneCode: 'ZN-04',
+    id: 'central-dal',
+    name: 'Central Dal',
+    zoneCode: 'ZN-02',
+    plasticShare: 8.2,
+    status: 'active',
+    lastScan: '2025-03-18T07:20:00+05:30',
+    risk: 'high',
+    coordinates: [34.1225, 74.8698],
+    cameras: 4
+  },
+  {
+    id: 'southern-shore',
+    name: 'Southern Shore',
+    zoneCode: 'ZN-03',
     plasticShare: 2.9,
     status: 'scheduled',
     lastScan: '2025-03-15T11:30:00+05:30',
     risk: 'low',
-    coordinates: [34.1236, 74.8848],
+    coordinates: [34.1290, 74.8858],
     cameras: 1
   },
   {
-    id: 'shalimar',
-    name: 'Shalimar',
-    zoneCode: 'ZN-05',
-    plasticShare: 5.4,
+    id: 'floating-gardens',
+    name: 'Floating Gardens',
+    zoneCode: 'ZN-04',
+    plasticShare: 6.1,
     status: 'active',
-    lastScan: '2025-03-18T08:05:00+05:30',
+    lastScan: '2025-03-18T08:30:00+05:30',
     risk: 'moderate',
-    coordinates: [34.1358, 74.8869],
+    coordinates: [34.1270, 74.8790],
     cameras: 2
   },
   {
-    id: 'jhelum-river',
-    name: 'Jhelum River, Zero Bridge stretch',
+    id: 'nigeen-basin',
+    name: 'Nigeen Basin',
+    zoneCode: 'ZN-05',
+    plasticShare: 4.1,
+    status: 'active',
+    lastScan: '2025-03-18T06:55:00+05:30',
+    risk: 'moderate',
+    coordinates: [34.1312, 74.8663],
+    cameras: 2
+  },
+  {
+    id: 'zero-bridge',
+    name: 'Zero Bridge',
     zoneCode: 'ZN-06',
     plasticShare: 9.7,
     status: 'active',
     lastScan: '2025-03-18T09:15:00+05:30',
     risk: 'high',
-    coordinates: [34.0837, 74.7973],
+    coordinates: [34.0950, 74.8030],
     cameras: 3
   }
 ]
@@ -207,66 +228,66 @@ export const liveAlerts = [
   {
     id: 'alt-1042',
     type: 'detection',
-    zone: 'Jhelum River',
-    message: 'Cluster of 14 objects flagged near Zero Bridge stretch',
+    zone: 'Zero Bridge',
+    message: 'Cluster of 14 objects flagged near the Zero Bridge outflow channel',
     timestamp: '2025-03-18T09:22:00+05:30'
   },
   {
     id: 'alt-1041',
     type: 'warning',
-    zone: 'Dal Lake',
-    message: 'Plastic coverage crossed the 8 percent threshold in ZN-01',
+    zone: 'Central Dal',
+    message: 'Plastic coverage crossed the 8 percent threshold in ZN-02',
     timestamp: '2025-03-18T08:47:00+05:30'
   },
   {
     id: 'alt-1040',
     type: 'camera',
-    zone: 'Nishat',
-    message: 'Camera NS-2 offline, last heartbeat 3 hours ago',
+    zone: 'Southern Shore',
+    message: 'Camera SS-1 offline, last heartbeat 3 hours ago',
     timestamp: '2025-03-18T06:10:00+05:30'
   },
   {
     id: 'alt-1039',
     type: 'upload',
-    zone: 'Shalimar',
-    message: 'Field team uploaded 212 new survey images',
+    zone: 'Floating Gardens',
+    message: 'Field team uploaded 212 new survey images from the floating gardens',
     timestamp: '2025-03-18T05:52:00+05:30'
   },
   {
     id: 'alt-1038',
     type: 'processing',
-    zone: 'Hazratbal',
-    message: 'Batch HZ-0317 finished processing, 96 objects classified',
+    zone: 'Northern Shore',
+    message: 'Batch NS-0317 finished processing, 96 objects classified',
     timestamp: '2025-03-17T22:18:00+05:30'
   }
 ]
 
 export const detectionRecords = [
-  { id: 'OBJ-30215', type: 'Polythene sheet', confidence: 0.94, area: 0.82, zone: 'Jhelum River', timestamp: '2025-03-18T09:15:00+05:30' },
-  { id: 'OBJ-30214', type: 'PET bottle', confidence: 0.91, area: 0.14, zone: 'Dal Lake', timestamp: '2025-03-18T09:02:00+05:30' },
-  { id: 'OBJ-30213', type: 'Food wrapper', confidence: 0.87, area: 0.05, zone: 'Dal Lake', timestamp: '2025-03-18T08:58:00+05:30' },
-  { id: 'OBJ-30212', type: 'Bottle cap', confidence: 0.79, area: 0.01, zone: 'Shalimar', timestamp: '2025-03-18T08:41:00+05:30' },
-  { id: 'OBJ-30211', type: 'Thermocol block', confidence: 0.88, area: 0.31, zone: 'Nigeen Lake', timestamp: '2025-03-18T08:20:00+05:30' },
-  { id: 'OBJ-30210', type: 'Polythene sheet', confidence: 0.96, area: 0.64, zone: 'Jhelum River', timestamp: '2025-03-18T07:55:00+05:30' },
-  { id: 'OBJ-30209', type: 'Rubber footwear', confidence: 0.82, area: 0.22, zone: 'Hazratbal', timestamp: '2025-03-18T07:30:00+05:30' },
-  { id: 'OBJ-30208', type: 'PET bottle', confidence: 0.9, area: 0.13, zone: 'Dal Lake', timestamp: '2025-03-18T07:12:00+05:30' },
-  { id: 'OBJ-30207', type: 'Food wrapper', confidence: 0.75, area: 0.04, zone: 'Nishat', timestamp: '2025-03-18T06:48:00+05:30' },
-  { id: 'OBJ-30206', type: 'Polythene sheet', confidence: 0.93, area: 0.58, zone: 'Dal Lake', timestamp: '2025-03-18T06:20:00+05:30' }
+  { id: 'OBJ-30215', type: 'Polythene sheet', confidence: 0.94, area: 0.82, zone: 'Zero Bridge', timestamp: '2025-03-18T09:15:00+05:30' },
+  { id: 'OBJ-30214', type: 'PET bottle', confidence: 0.91, area: 0.14, zone: 'Central Dal', timestamp: '2025-03-18T09:02:00+05:30' },
+  { id: 'OBJ-30213', type: 'Food wrapper', confidence: 0.87, area: 0.05, zone: 'Central Dal', timestamp: '2025-03-18T08:58:00+05:30' },
+  { id: 'OBJ-30212', type: 'Bottle cap', confidence: 0.79, area: 0.01, zone: 'Floating Gardens', timestamp: '2025-03-18T08:41:00+05:30' },
+  { id: 'OBJ-30211', type: 'Thermocol foam block', confidence: 0.88, area: 0.31, zone: 'Nigeen Basin', timestamp: '2025-03-18T08:20:00+05:30' },
+  { id: 'OBJ-30210', type: 'Polythene sheet', confidence: 0.96, area: 0.64, zone: 'Zero Bridge', timestamp: '2025-03-18T07:55:00+05:30' },
+  { id: 'OBJ-30209', type: 'Rubber shoe', confidence: 0.82, area: 0.22, zone: 'Northern Shore', timestamp: '2025-03-18T07:30:00+05:30' },
+  { id: 'OBJ-30208', type: 'PET bottle', confidence: 0.9, area: 0.13, zone: 'Central Dal', timestamp: '2025-03-18T07:12:00+05:30' },
+  { id: 'OBJ-30207', type: 'Food wrapper', confidence: 0.75, area: 0.04, zone: 'Southern Shore', timestamp: '2025-03-18T06:48:00+05:30' },
+  { id: 'OBJ-30206', type: 'Polythene sheet', confidence: 0.93, area: 0.58, zone: 'Central Dal', timestamp: '2025-03-18T06:20:00+05:30' }
 ]
 
 export const classificationSummary = [
+  { category: 'Bottle', count: 4489, avgConfidence: 0.9 },
+  { category: 'Cap', count: 2384, avgConfidence: 0.78 },
+  { category: 'Wrapper', count: 3502, avgConfidence: 0.83 },
   { category: 'Polythene', count: 5216, avgConfidence: 0.93 },
-  { category: 'Bottles', count: 4489, avgConfidence: 0.9 },
-  { category: 'Wrappers', count: 3502, avgConfidence: 0.83 },
-  { category: 'Caps', count: 2384, avgConfidence: 0.78 },
-  { category: 'Foam', count: 1741, avgConfidence: 0.86 },
-  { category: 'Footwear', count: 1410, avgConfidence: 0.81 }
+  { category: 'Shoe', count: 1410, avgConfidence: 0.81 },
+  { category: 'Foam', count: 1741, avgConfidence: 0.86 }
 ]
 
 export const segmentationSamples = [
   {
     id: 'SEG-0417',
-    zone: 'Dal Lake, ZN-01',
+    zone: 'Central Dal, ZN-02',
     capturedAt: '2025-03-18T07:20:00+05:30',
     coveragePercent: 8.2,
     objectsFound: 34,
@@ -274,7 +295,7 @@ export const segmentationSamples = [
   },
   {
     id: 'SEG-0416',
-    zone: 'Jhelum River, ZN-06',
+    zone: 'Zero Bridge, ZN-06',
     capturedAt: '2025-03-18T09:15:00+05:30',
     coveragePercent: 9.7,
     objectsFound: 41,
@@ -282,7 +303,7 @@ export const segmentationSamples = [
   },
   {
     id: 'SEG-0415',
-    zone: 'Shalimar, ZN-05',
+    zone: 'Southern Shore, ZN-03',
     capturedAt: '2025-03-18T08:05:00+05:30',
     coveragePercent: 5.4,
     objectsFound: 19,
@@ -293,12 +314,63 @@ export const segmentationSamples = [
 export const recentReports = [
   { id: 'RPT-0091', title: 'Weekly Zone Summary, Week 11', generatedOn: '2025-03-17T18:00:00+05:30', format: 'PDF' },
   { id: 'RPT-0090', title: 'Dal Lake Coverage Assessment', generatedOn: '2025-03-14T12:30:00+05:30', format: 'PDF' },
-  { id: 'RPT-0089', title: 'Monthly Municipal Corporation Brief, February', generatedOn: '2025-03-02T10:15:00+05:30', format: 'PDF' }
+  { id: 'RPT-0089', title: 'Monthly Dal Lake Authority Brief, February', generatedOn: '2025-03-02T10:15:00+05:30', format: 'PDF' }
+]
+
+// Citizen submitted reports. The submission form itself is on the Phase 2
+// roadmap, this dataset exists so the authority side can already display
+// and triage reports once citizens start filing them.
+export const citizenReports = [
+  {
+    id: 'CR-0512',
+    zone: 'Floating Gardens',
+    description: 'Heavy polythene buildup near the vegetable plots, visible from the shore path',
+    submittedBy: 'Aamir K.',
+    status: 'cleanup-scheduled',
+    severity: 'high',
+    timestamp: '2025-03-18T08:15:00+05:30'
+  },
+  {
+    id: 'CR-0511',
+    zone: 'Zero Bridge',
+    description: 'Wrappers and bottles collecting against the outflow gate after last night\'s wind',
+    submittedBy: 'Zoya M.',
+    status: 'under-review',
+    severity: 'moderate',
+    timestamp: '2025-03-18T07:40:00+05:30'
+  },
+  {
+    id: 'CR-0510',
+    zone: 'Central Dal',
+    description: 'Floating debris trail spotted along the shikara route near ghat 9',
+    submittedBy: 'Bilal A.',
+    status: 'verified',
+    severity: 'moderate',
+    timestamp: '2025-03-17T17:05:00+05:30'
+  },
+  {
+    id: 'CR-0509',
+    zone: 'Northern Shore',
+    description: 'Small cluster of foam packaging washed up near the Hazratbal ghat steps',
+    submittedBy: 'Nusrat S.',
+    status: 'resolved',
+    severity: 'low',
+    timestamp: '2025-03-16T14:20:00+05:30'
+  },
+  {
+    id: 'CR-0508',
+    zone: 'Southern Shore',
+    description: 'Discarded shoes and packaging near the Nishat boat jetty',
+    submittedBy: 'Owais R.',
+    status: 'resolved',
+    severity: 'low',
+    timestamp: '2025-03-15T09:50:00+05:30'
+  }
 ]
 
 export const currentUser = {
-  name: 'Er. Aadil Rashid',
-  role: 'Environmental Officer',
-  department: 'Municipal Corporation Srinagar',
-  initials: 'AR'
+  name: 'Sitanshu Singh',
+  role: 'Research Lead',
+  department: 'PlasticNet AI, Dal Lake Monitoring Dashboard',
+  initials: 'SS'
 }

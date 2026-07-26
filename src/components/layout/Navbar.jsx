@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Bell, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Search, Sun } from 'lucide-react'
 import { useDashboard } from '../../hooks/useDashboard.js'
-import { liveAlerts, currentUser } from '../../data/mockData.js'
+import { getLiveAlerts } from '../../services/api.js'
 
 const dateFormatter = new Intl.DateTimeFormat('en-IN', {
   weekday: 'short',
@@ -16,10 +16,15 @@ export default function Navbar({ onOpenMobileNav }) {
   const navigate = useNavigate()
   const [notifOpen, setNotifOpen] = useState(false)
   const [today, setToday] = useState(new Date())
+  const [alerts, setAlerts] = useState([])
 
   useEffect(() => {
     const timer = setInterval(() => setToday(new Date()), 60000)
     return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    getLiveAlerts().then(setAlerts)
   }, [])
 
   function handleLogout() {
@@ -79,7 +84,7 @@ export default function Navbar({ onOpenMobileNav }) {
             <div className="absolute right-0 mt-2 w-80 rounded-md border border-border bg-surface p-2 shadow-raised dark:border-night-border dark:bg-night-surface">
               <p className="px-2 py-1.5 text-xs font-semibold uppercase tracking-wide text-ink-faint dark:text-night-ink-faint">Recent Activity</p>
               <ul className="scroll-thin max-h-72 overflow-y-auto">
-                {liveAlerts.slice(0, 4).map((alert) => (
+                {alerts.slice(0, 4).map((alert) => (
                   <li key={alert.id} className="rounded-sm px-2 py-2 text-sm hover:bg-surface-muted dark:hover:bg-night-muted">
                     <p className="text-ink dark:text-night-ink">{alert.message}</p>
                     <p className="mt-0.5 text-xs text-ink-faint dark:text-night-ink-faint">{alert.zone}</p>
@@ -92,11 +97,11 @@ export default function Navbar({ onOpenMobileNav }) {
 
         <div className="ml-1 flex items-center gap-2.5 border-l border-border pl-2.5 dark:border-night-border">
           <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white">
-            {currentUser.initials}
+            {state.user.initials}
           </span>
           <div className="hidden leading-tight sm:block">
-            <p className="text-sm font-medium text-ink dark:text-night-ink">{currentUser.name}</p>
-            <p className="text-xs text-ink-faint dark:text-night-ink-faint">{currentUser.role}</p>
+            <p className="text-sm font-medium text-ink dark:text-night-ink">{state.user.name}</p>
+            <p className="text-xs text-ink-faint dark:text-night-ink-faint">{state.user.role}</p>
           </div>
           <button
             type="button"

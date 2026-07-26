@@ -10,12 +10,30 @@ const STATUS_STYLES = {
   offline: 'bg-surface-muted text-ink-faint dark:bg-night-muted dark:text-night-ink-faint'
 }
 
+const REPORT_STYLES = {
+  'under-review': 'bg-warning-light text-warning-dark dark:bg-warning/15 dark:text-warning',
+  verified: 'bg-lake-light text-lake-dark dark:bg-lake/15 dark:text-lake',
+  'cleanup-scheduled': 'bg-primary-light text-primary dark:bg-primary/15',
+  resolved: 'bg-surface-muted text-ink-faint dark:bg-night-muted dark:text-night-ink-faint'
+}
+
 const RISK_LABELS = { high: 'High Risk', moderate: 'Moderate Risk', low: 'Low Risk' }
 const STATUS_LABELS = { active: 'Active', scheduled: 'Scheduled', offline: 'Offline' }
+const REPORT_LABELS = {
+  'under-review': 'Under Review',
+  verified: 'Verified',
+  'cleanup-scheduled': 'Cleanup Scheduled',
+  resolved: 'Resolved'
+}
+
+const KIND_MAP = {
+  risk: { styles: RISK_STYLES, labels: RISK_LABELS },
+  status: { styles: STATUS_STYLES, labels: STATUS_LABELS },
+  report: { styles: REPORT_STYLES, labels: REPORT_LABELS }
+}
 
 export default function ZoneBadge({ kind = 'risk', value }) {
-  const styles = kind === 'risk' ? RISK_STYLES : STATUS_STYLES
-  const labels = kind === 'risk' ? RISK_LABELS : STATUS_LABELS
+  const { styles, labels } = KIND_MAP[kind]
 
   return (
     <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${styles[value]}`}>

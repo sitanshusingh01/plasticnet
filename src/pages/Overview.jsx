@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import {
   Area,
   AreaChart,
@@ -20,16 +21,18 @@ import PageHeader from '../components/common/PageHeader.jsx'
 import StatCard from '../components/common/StatCard.jsx'
 import ChartCard from '../components/common/ChartCard.jsx'
 import ZoneBadge from '../components/common/ZoneBadge.jsx'
+import DataTable from '../components/common/DataTable.jsx'
 import Loader from '../components/common/Loader.jsx'
 import {
-  fetchOverviewMetrics,
-  fetchDetectionTrend,
-  fetchWeeklyCollection,
-  fetchCategoryDistribution,
-  fetchCoverageTrend,
-  fetchPollutionTrend,
-  fetchMonitoringRegions,
-  fetchLiveAlerts
+  getDashboardStats,
+  getDetectionTrend,
+  getWeeklyCollection,
+  getCategoryDistribution,
+  getCoverageTrend,
+  getPollutionIndexTrend,
+  getMonitoringZones,
+  getLiveAlerts,
+  getCitizenReports
 } from '../services/api.js'
 import { formatRelativeTime, formatClockTime } from '../utils/format.js'
 
@@ -56,32 +59,43 @@ const ALERT_TONE = {
   processing: 'bg-surface-muted dark:bg-night-muted text-ink-muted dark:text-night-ink-muted'
 }
 
+const CITIZEN_REPORT_COLUMNS = [
+  { key: 'id', header: 'Report ID' },
+  { key: 'zone', header: 'Zone' },
+  { key: 'description', header: 'Description' },
+  { key: 'submittedBy', header: 'Submitted By' },
+  { key: 'status', header: 'Status', render: (row) => <ZoneBadge kind="report" value={row.status} /> },
+  { key: 'timestamp', header: 'Reported', render: (row) => formatRelativeTime(row.timestamp) }
+]
+
 export default function Overview() {
   const [metrics, setMetrics] = useState(null)
   const [trend, setTrend] = useState(null)
   const [collection, setCollection] = useState(null)
   const [categories, setCategories] = useState(null)
   const [coverage, setCoverage] = useState(null)
-  const [pollution, setPollution] = useState(null)
-  const [regions, setRegions] = useState(null)
+  const [pollutionIndex, setPollutionIndex] = useState(null)
+  const [zones, setZones] = useState(null)
   const [alerts, setAlerts] = useState(null)
+  const [citizenReports, setCitizenReports] = useState(null)
 
   useEffect(() => {
-    fetchOverviewMetrics().then(setMetrics)
-    fetchDetectionTrend().then(setTrend)
-    fetchWeeklyCollection().then(setCollection)
-    fetchCategoryDistribution().then(setCategories)
-    fetchCoverageTrend().then(setCoverage)
-    fetchPollutionTrend().then(setPollution)
-    fetchMonitoringRegions().then(setRegions)
-    fetchLiveAlerts().then(setAlerts)
+    getDashboardStats().then(setMetrics)
+    getDetectionTrend().then(setTrend)
+    getWeeklyCollection().then(setCollection)
+    getCategoryDistribution().then(setCategories)
+    getCoverageTrend().then(setCoverage)
+    getPollutionIndexTrend().then(setPollutionIndex)
+    getMonitoringZones().then(setZones)
+    getLiveAlerts().then(setAlerts)
+    getCitizenReports().then(setCitizenReports)
   }, [])
 
   return (
     <div>
       <PageHeader
         title="Dashboard Overview"
-        subtitle="Live status across all monitoring zones, updated every scan cycle"
+        subtitle="Live status across Dal Lake's six monitoring zones, updated every scan cycle"
       />
 
       {!metrics ? (
@@ -95,7 +109,7 @@ export default function Overview() {
       )}
 
       <div className="mt-6 grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <ChartCard title="Daily Detection Trend" subtitle="Objects logged per day, last 14 days" className="xl:col-span-2">
+        <ChartCard title="Daily Detection Trend" subtitle="Objects logged per day across Dal Lake, last 14 days" className="xl:col-span-2">
           {!trend ? (
             <Loader />
           ) : (
@@ -117,7 +131,7 @@ export default function Overview() {
           )}
         </ChartCard>
 
-        <ChartCard title="Plastic Category Distribution" subtitle="Share of total objects classified">
+        <ChartCard title="Waste Category Distribution" subtitle="Share of objects classified across our 6 dataset classes">
           {!categories ? (
             <Loader />
           ) : (
@@ -147,7 +161,7 @@ export default function Overview() {
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <ChartCard title="Weekly Plastic Collection" subtitle="Kilograms recovered by field teams">
+        <ChartCard title="Weekly Plastic Collection" subtitle="Kilograms recovered from Dal Lake by field teams">
           {!collection ? (
             <Loader />
           ) : (
@@ -163,7 +177,7 @@ export default function Overview() {
           )}
         </ChartCard>
 
-        <ChartCard title="Coverage Trend" subtitle="Plastic surface coverage, six month view">
+        <ChartCard title="Coverage Trend" subtitle="Plastic surface coverage across Dal Lake, six month view">
           {!coverage ? (
             <Loader />
           ) : (
@@ -179,12 +193,12 @@ export default function Overview() {
           )}
         </ChartCard>
 
-        <ChartCard title="Monthly Pollution Trend" subtitle="Composite environmental health index">
-          {!pollution ? (
+        <ChartCard title="Dal Lake Pollution Index" subtitle="Composite severity score, higher means more waste observed">
+          {!pollutionIndex ? (
             <Loader />
           ) : (
             <ResponsiveContainer width="100%" height={190}>
-              <LineChart data={pollution} margin={{ left: -20, right: 8, top: 4 }}>
+              <LineChart data={pollutionIndex} margin={{ left: -20, right: 8, top: 4 }}>
                 <CartesianGrid vertical={false} stroke="#DDE2D6" />
                 <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#8A968D' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize: 11, fill: '#8A968D' }} axisLine={false} tickLine={false} />
@@ -200,32 +214,32 @@ export default function Overview() {
         <div className="rounded-md border border-border dark:border-night-border bg-surface dark:bg-night-surface p-5 shadow-card xl:col-span-2">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-ink dark:text-night-ink">Monitoring Regions</h3>
-              <p className="mt-0.5 text-xs text-ink-faint dark:text-night-ink-faint">Dal Lake, Nigeen Lake and four other active zones</p>
+              <h3 className="text-sm font-semibold text-ink dark:text-night-ink">Dal Lake Monitoring Zones</h3>
+              <p className="mt-0.5 text-xs text-ink-faint dark:text-night-ink-faint">Northern Shore, Central Dal and four other zones inside the lake</p>
             </div>
           </div>
 
-          {!regions ? (
+          {!zones ? (
             <Loader />
           ) : (
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {regions.map((region) => (
-                <div key={region.id} className="rounded-sm border border-border dark:border-night-border p-4">
+              {zones.map((zone) => (
+                <div key={zone.id} className="rounded-sm border border-border dark:border-night-border p-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <p className="text-sm font-medium text-ink dark:text-night-ink">{region.name}</p>
-                      <p className="text-xs text-ink-faint dark:text-night-ink-faint">{region.zoneCode}</p>
+                      <p className="text-sm font-medium text-ink dark:text-night-ink">{zone.name}</p>
+                      <p className="text-xs text-ink-faint dark:text-night-ink-faint">{zone.zoneCode}</p>
                     </div>
-                    <ZoneBadge kind="risk" value={region.risk} />
+                    <ZoneBadge kind="risk" value={zone.risk} />
                   </div>
                   <div className="mt-3 flex items-end justify-between">
                     <div>
-                      <p className="num text-lg font-semibold text-ink dark:text-night-ink">{region.plasticShare}%</p>
+                      <p className="num text-lg font-semibold text-ink dark:text-night-ink">{zone.plasticShare}%</p>
                       <p className="text-xs text-ink-faint dark:text-night-ink-faint">Plastic coverage</p>
                     </div>
                     <div className="text-right">
-                      <ZoneBadge kind="status" value={region.status} />
-                      <p className="mt-1.5 text-xs text-ink-faint dark:text-night-ink-faint">Scanned {formatRelativeTime(region.lastScan)}</p>
+                      <ZoneBadge kind="status" value={zone.status} />
+                      <p className="mt-1.5 text-xs text-ink-faint dark:text-night-ink-faint">Scanned {formatRelativeTime(zone.lastScan)}</p>
                     </div>
                   </div>
                 </div>
@@ -236,7 +250,7 @@ export default function Overview() {
 
         <div className="rounded-md border border-border dark:border-night-border bg-surface dark:bg-night-surface p-5 shadow-card">
           <h3 className="text-sm font-semibold text-ink dark:text-night-ink">Live Alerts</h3>
-          <p className="mt-0.5 text-xs text-ink-faint dark:text-night-ink-faint">Latest activity across all zones</p>
+          <p className="mt-0.5 text-xs text-ink-faint dark:text-night-ink-faint">Latest activity across all Dal Lake zones</p>
 
           {!alerts ? (
             <Loader />
@@ -255,6 +269,23 @@ export default function Overview() {
               ))}
             </ul>
           )}
+        </div>
+      </div>
+
+      <div className="mt-4 rounded-md border border-border dark:border-night-border bg-surface dark:bg-night-surface p-5 shadow-card">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-sm font-semibold text-ink dark:text-night-ink">Recent Citizen Reports</h3>
+            <p className="mt-0.5 text-xs text-ink-faint dark:text-night-ink-faint">
+              Submitted through the public citizen reporting portal
+            </p>
+          </div>
+          <Link to="/reports" className="text-xs font-medium text-primary hover:underline">
+            View full queue
+          </Link>
+        </div>
+        <div className="mt-4">
+          {!citizenReports ? <Loader /> : <DataTable columns={CITIZEN_REPORT_COLUMNS} rows={citizenReports} />}
         </div>
       </div>
     </div>

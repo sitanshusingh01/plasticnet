@@ -1,17 +1,24 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { BadgeCheck, FileOutput, Film, Map, TrendingUp, Video } from 'lucide-react'
+import { BadgeCheck, Film, Map, TrendingUp, Video } from 'lucide-react'
 import DashboardLayout from '../layouts/DashboardLayout.jsx'
+import Home from '../pages/Home.jsx'
 import Login from '../pages/Login.jsx'
+import CitizenReport from '../pages/CitizenReport.jsx'
+import CommunityReports from '../pages/CommunityReports.jsx'
 import Overview from '../pages/Overview.jsx'
 import Segmentation from '../pages/Segmentation.jsx'
 import Detection from '../pages/Detection.jsx'
 import Classification from '../pages/Classification.jsx'
+import Reports from '../pages/Reports.jsx'
 import ComingSoon from '../pages/ComingSoon.jsx'
 import ProtectedRoute from './ProtectedRoute.jsx'
 
 export default function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/report" element={<CitizenReport />} />
+      <Route path="/community-reports" element={<CommunityReports />} />
       <Route path="/login" element={<Login />} />
 
       <Route element={<ProtectedRoute />}>
@@ -20,6 +27,7 @@ export default function AppRoutes() {
           <Route path="/segmentation" element={<Segmentation />} />
           <Route path="/detection" element={<Detection />} />
           <Route path="/classification" element={<Classification />} />
+          <Route path="/reports" element={<Reports />} />
           <Route
             path="/regression"
             element={
@@ -28,9 +36,9 @@ export default function AppRoutes() {
                 description="Forecasting pollution trends"
                 icon={TrendingUp}
                 points={[
-                  'Predict coverage percentage two weeks ahead from scan history',
+                  'Predict Dal Lake coverage percentage two weeks ahead from scan history',
                   'Correlate rainfall and tourist footfall with detection volume',
-                  'Flag zones likely to cross the high risk threshold'
+                  'Flag Dal Lake zones likely to cross the high risk threshold'
                 ]}
               />
             }
@@ -43,9 +51,9 @@ export default function AppRoutes() {
                 description="Streaming feeds from shoreline cameras"
                 icon={Video}
                 points={[
-                  'Watch footage from all shoreline cameras in real time',
+                  'Watch footage from every Dal Lake shoreline camera in real time',
                   'Trigger detection on demand from a live frame',
-                  'Review camera uptime and connectivity history'
+                  'Review camera uptime across Northern Shore, Central Dal and the other zones'
                 ]}
               />
             }
@@ -58,7 +66,7 @@ export default function AppRoutes() {
                 description="Batch processing for field survey footage"
                 icon={Film}
                 points={[
-                  'Queue drone and handheld survey footage for batch analysis',
+                  'Queue drone and handheld Dal Lake survey footage for batch analysis',
                   'Automatically extract frames from video at a set interval',
                   'Track processing status across large uploads'
                 ]}
@@ -70,12 +78,12 @@ export default function AppRoutes() {
             element={
               <ComingSoon
                 title="GIS Mapping"
-                description="A live map of every monitored zone"
+                description="Dal Lake GIS monitoring, zone by zone"
                 icon={Map}
                 points={[
-                  'Plot detections on an interactive map of the Kashmir waterways',
-                  'Toggle a pollution density heatmap by zone',
-                  'Filter markers by plastic type and survey date'
+                  'Plot detections on an interactive map of Dal Lake, from Northern Shore to Zero Bridge',
+                  'Toggle a pollution density heatmap across sampling locations and cleanup zones',
+                  'Filter markers by plastic type, survey date and the Floating Gardens sector'
                 ]}
               />
             }
@@ -88,24 +96,9 @@ export default function AppRoutes() {
                 description="Field verification of AI detections"
                 icon={BadgeCheck}
                 points={[
-                  'Compare AI detections against field team ground truth',
-                  'Track model accuracy by zone over time',
+                  'Compare AI detections against field team and citizen reported ground truth',
+                  'Track model accuracy by Dal Lake zone over time',
                   'Flag low confidence detections for manual review'
-                ]}
-              />
-            }
-          />
-          <Route
-            path="/reports"
-            element={
-              <ComingSoon
-                title="Reports and Export"
-                description="Generate reports for municipal review"
-                icon={FileOutput}
-                points={[
-                  'Generate PDF summaries for the Pollution Control Board',
-                  'Export raw detection data as CSV for further analysis',
-                  'Bundle imagery and reports together as a ZIP archive'
                 ]}
               />
             }
@@ -113,8 +106,7 @@ export default function AppRoutes() {
         </Route>
       </Route>
 
-      <Route path="/" element={<Navigate to="/dashboard" replace />} />
-      <Route path="*" element={<Navigate to="/dashboard" replace />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )
 }

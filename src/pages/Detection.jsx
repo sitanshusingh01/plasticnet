@@ -3,16 +3,18 @@ import { Download, PlayCircle } from 'lucide-react'
 import PageHeader from '../components/common/PageHeader.jsx'
 import UploadCard from '../components/common/UploadCard.jsx'
 import DataTable from '../components/common/DataTable.jsx'
-import { fetchDetectionRecords, runInference } from '../services/api.js'
+import MetricCard from '../components/common/MetricCard.jsx'
+import { getDetectionRecords, runDetection } from '../services/api.js'
 import { formatClockTime } from '../utils/format.js'
 
-const PLASTIC_TYPES = ['Polythene sheet', 'PET bottle', 'Food wrapper', 'Bottle cap', 'Thermocol block']
+const PLASTIC_TYPES = ['Polythene sheet', 'PET bottle', 'Food wrapper', 'Bottle cap', 'Thermocol foam block', 'Rubber shoe']
 
 // Placeholder boxes drawn over the uploaded frame once a run completes. The
 // detection model will return real normalized coordinates through the same
-// runInference call, at which point this array gets replaced by job.boxes.
+// runDetection call, at which point this array gets replaced by job.boxes.
 function generateBoxes() {
-  return Array.from({ length: 4 }).map((_, index) => ({
+  const count = Math.floor(Math.random() * 4) + 2
+  return Array.from({ length: count }).map((_, index) => ({
     id: index,
     type: PLASTIC_TYPES[Math.floor(Math.random() * PLASTIC_TYPES.length)],
     confidence: (Math.random() * 0.22 + 0.75).toFixed(2),
@@ -23,6 +25,12 @@ function generateBoxes() {
   }))
 }
 
+function severityFromCount(count) {
+  if (count <= 2) return { label: 'Low', tone: 'primary' }
+  if (count <= 4) return { label: 'Moderate', tone: 'warning' }
+  return { label: 'High', tone: 'danger' }
+}
+
 export default function Detection() {
   const [file, setFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
@@ -31,7 +39,7 @@ export default function Detection() {
   const [records, setRecords] = useState(null)
 
   useEffect(() => {
-    fetchDetectionRecords().then(setRecords)
+    getDetectionRecords().then(setRecords)
   }, [])
 
   useEffect(() => {
@@ -57,7 +65,7 @@ export default function Detection() {
   async function handleRun() {
     if (!file) return
     setStatus('running')
-    await runInference(file, 'detection')
+    await runDetection(file)
     setBoxes(generateBoxes())
     setStatus('complete')
   }
@@ -72,10 +80,15 @@ export default function Detection() {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = 'plasticnet_detections.csv'
+    link.download = 'plasticnet_dal_lake_detections.csv'
     link.click()
     URL.revokeObjectURL(url)
   }
+
+  const severity = boxes.length ? severityFromCount(boxes.length) : null
+  const avgConfidence = boxes.length
+    ? (boxes.reduce((sum, box) => sum + Number(box.confidence), 0) / boxes.length).toFixed(2)
+    : null
 
   const columns = useMemo(
     () => [
@@ -91,7 +104,7 @@ export default function Detection() {
 
   return (
     <div>
-      <PageHeader title="Object Detection" subtitle="Locate and count individual plastic objects in a survey frame" />
+      <PageHeader title="Object Detection" subtitle="Locate and count individual plastic objects in a Dal Lake survey frame" />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <div>
@@ -105,6 +118,14 @@ export default function Detection() {
             <PlayCircle size={16} />
             {status === 'running' ? 'Scanning frame' : 'Run Detection'}
           </button>
+
+          {severity && (
+            <div className="mt-4 grid grid-cols-3 gap-3">
+              <MetricCard label="Objects Detected" value={boxes.length} />
+              <MetricCard label="Pollution Severity" value={severity.label} tone={severity.tone} />
+              <MetricCard label="Avg Confidence" value={`${Math.round(avgConfidence * 100)}%`} />
+            </div>
+          )}
         </div>
 
         <div>
@@ -112,7 +133,7 @@ export default function Detection() {
           <div className="relative flex h-[300px] items-center justify-center overflow-hidden rounded-md border border-border dark:border-night-border bg-surface-muted dark:bg-night-muted">
             {previewUrl ? (
               <>
-                <img src={previewUrl} alt="Uploaded survey frame" className="h-full w-full object-cover" />
+                <img src={previewUrl} alt="Uploaded Dal Lake survey frame" className="h-full w-full object-cover" />
                 {boxes.map((box) => (
                   <div
                     key={box.id}
@@ -127,7 +148,7 @@ export default function Detection() {
               </>
             ) : (
               <p className="px-6 text-center text-sm text-ink-faint dark:text-night-ink-faint">
-                Upload a frame to preview detected bounding boxes here
+                Upload a Dal Lake frame to preview detected bounding boxes here
               </p>
             )}
           </div>
@@ -136,7 +157,7 @@ export default function Detection() {
 
       <div className="mt-8">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-ink dark:text-night-ink">Detection Table</h3>
+          <h3 className="text-sm font-semibold text-ink dark:text-night-ink">Detection Summary</h3>
           <button
             type="button"
             onClick={handleExport}

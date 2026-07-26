@@ -11,7 +11,7 @@ const initialState = {
 function reducer(state, action) {
   switch (action.type) {
     case 'LOGIN':
-      return { ...state, isAuthenticated: true }
+      return { ...state, isAuthenticated: true, user: action.payload || state.user }
     case 'LOGOUT':
       return { ...state, isAuthenticated: false }
     case 'TOGGLE_THEME':

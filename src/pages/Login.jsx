@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { Eye, EyeOff, Leaf, Lock, Mail } from 'lucide-react'
 import WaterlinePattern from '../components/common/WaterlinePattern.jsx'
 import { useDashboard } from '../hooks/useDashboard.js'
-import { loginRequest } from '../services/api.js'
+import { login } from '../services/api.js'
 
 export default function Login() {
   const { dispatch } = useDashboard()
@@ -24,8 +24,8 @@ export default function Login() {
     setError('')
     setSubmitting(true)
     try {
-      await loginRequest(email, password)
-      dispatch({ type: 'LOGIN' })
+      const result = await login(email, password)
+      dispatch({ type: 'LOGIN', payload: result.user })
       navigate('/dashboard')
     } catch {
       setError('We could not verify those credentials. Try again')
@@ -48,14 +48,14 @@ export default function Login() {
 
         <div className="relative max-w-md">
           <p className="text-xs font-medium uppercase tracking-widest text-primary-light/80">
-            Municipal Corporation Srinagar &middot; NIT Srinagar
+            AI Powered Dal Lake Plastic Monitoring Platform
           </p>
           <h1 className="mt-4 text-3xl font-semibold leading-tight text-white xl:text-4xl">
-            Kashmir Plastic Waste Monitoring System
+            Protecting Dal Lake with computer vision and environmental analytics
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-white/60">
-            Real time plastic detection, segmentation and environmental monitoring across Dal Lake,
-            Nigeen Lake and the surrounding waterways.
+            Upload a survey frame from Dal Lake and get plastic coverage, object detection and
+            waste classification back in seconds, built on our own Dal Lake annotation pipeline.
           </p>
         </div>
 
@@ -66,7 +66,7 @@ export default function Login() {
           </div>
           <div>
             <p className="num text-xl font-semibold text-white">6</p>
-            <p className="mt-0.5 text-xs text-white/50">Zones monitored</p>
+            <p className="mt-0.5 text-xs text-white/50">Dal Lake zones</p>
           </div>
           <div>
             <p className="num text-xl font-semibold text-white">71/100</p>
@@ -84,11 +84,10 @@ export default function Login() {
             <span className="text-sm font-semibold text-ink">PlasticNet AI</span>
           </div>
 
-          <h2 className="text-xl font-semibold text-ink">Officer sign in</h2>
+          <h2 className="text-xl font-semibold text-ink">Sign in to PlasticNet AI</h2>
           <p className="mt-1.5 text-sm text-ink-muted">
-            Enter your credentials to access the monitoring dashboard
+            Enter your credentials to access the Dal Lake monitoring dashboard
           </p>
-
           <form onSubmit={handleSubmit} className="mt-7 space-y-4">
             <div>
               <label htmlFor="email" className="mb-1.5 block text-sm font-medium text-ink">
@@ -102,7 +101,7 @@ export default function Login() {
                   autoComplete="email"
                   value={email}
                   onChange={(event) => setEmail(event.target.value)}
-                  placeholder="you@jknits.gov.in"
+                  placeholder="you@nitsri.ac.in"
                   className="w-full rounded-sm border border-border bg-surface py-2.5 pl-9 pr-3 text-sm text-ink placeholder:text-ink-faint focus:border-primary focus:outline-none"
                 />
               </div>
@@ -162,9 +161,18 @@ export default function Login() {
           </form>
 
           <p className="mt-8 text-xs leading-relaxed text-ink-faint">
-            Access is restricted to authorized environmental officers, research scholars and field
-            survey personnel. Contact the NIT Srinagar research cell for access requests.
+            Access is restricted to the research team, municipal authority staff and field survey
+            personnel. Contact the NIT Srinagar research cell for access requests.
           </p>
+
+          <div className="mt-4 flex items-center gap-4 text-xs">
+            <Link to="/" className="font-medium text-ink-muted hover:text-ink">
+              &larr; Back to home
+            </Link>
+            <Link to="/report" className="font-medium text-primary hover:underline">
+              Report pollution instead
+            </Link>
+          </div>
         </div>
       </div>
     </div>
