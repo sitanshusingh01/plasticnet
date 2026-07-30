@@ -2,7 +2,7 @@
 
 AI powered plastic pollution monitoring built specifically for Dal Lake, Srinagar. The project pairs a citizen reporting tool with an authority dashboard, and it's being developed alongside a computer vision research effort at NIT Srinagar.
 
-
+Live app: https://sitanshusingh01.github.io/plasticnet/
 
 The frontend below is fully built. The AI model and backend are not connected yet, every number on screen comes from a mock data layer described further down. That's intentional, not a placeholder we forgot to remove.
 
