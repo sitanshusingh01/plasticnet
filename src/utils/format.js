@@ -25,3 +25,16 @@ export function formatClockTime(isoString) {
 export function formatShortDate(isoString) {
   return dateFormatter.format(new Date(isoString))
 }
+
+// Backend storage keys media by a generated name rather than whatever the
+// user's device called it, avoids collisions and keeps a consistent,
+// sortable pattern once files actually land in cloud storage.
+export function buildReportFilename(reportId, mediaType, isoTimestamp) {
+  const date = new Date(isoTimestamp)
+  const pad = (value) => String(value).padStart(2, '0')
+  const stamp =
+    `${date.getFullYear()}${pad(date.getMonth() + 1)}${pad(date.getDate())}` +
+    `_${pad(date.getHours())}${pad(date.getMinutes())}${pad(date.getSeconds())}`
+  const extension = mediaType === 'video' ? 'mp4' : 'jpg'
+  return `PLASTICNET_${stamp}_${reportId}.${extension}`
+}

@@ -40,15 +40,16 @@ React Components  ->  src/services/api.js  ->  FastAPI Backend  ->  YOLOv8 Segme
 
 What's built and working right now:
 
-- Public homepage, with separate entry points for citizens and the authority team
-- Citizen reporting flow: upload a photo, get a mock analysis, submit a report
-- Community reports feed, a public log of everything citizens have submitted
+- Public homepage, generic and welcoming rather than branded around any one location, with separate entry points for citizens and the review team
+- Citizen reporting flow: upload a single photo or video, share your location, adjust the pin on an interactive map, and submit
+- Automatic reverse geocoding of the reported coordinates to a readable place name, using OpenStreetMap's Nominatim service
+- Community reports feed, a public log of everything citizens have submitted, with CSV and JSON export
 - Authority sign in (mocked, accepts any email and password)
 - Dashboard overview with eight KPI cards, five charts, a six zone monitoring panel and a live alerts feed
 - Segmentation page with tabbed mask, overlay and heatmap previews
 - Object detection page with a bounding box preview and a working CSV export
 - Classification page with an animated category breakdown
-- Reports and export page, showing generated report history and the full citizen report queue with CSV export
+- Reports and export page: generated report history, the full citizen report queue with a status update control, a detail view with media and location, and CSV or JSON export filtered by status
 - Dark mode across the entire app
 - Responsive layout down to mobile, including a slide out sidebar
 
@@ -76,6 +77,8 @@ The next milestone is connecting the trained model. In order, that means:
 - React Router for client side routing
 - Tailwind CSS for styling
 - Recharts for charts
+- Leaflet and react-leaflet for the location confirmation map, using OpenStreetMap tiles
+- Browser Geolocation API for capturing device location, OpenStreetMap Nominatim for reverse geocoding
 - Axios, wired up and ready for the FastAPI backend
 - Lucide React for icons
 - Context API with `useReducer` for auth, theme and sidebar state
@@ -180,23 +183,25 @@ Authority review, prioritisation and reporting
 - **Segmentation** — upload a frame, preview the mask, overlay and heatmap outputs, and browse recent segmentation runs
 - **Detection** — bounding box preview over an uploaded frame, a detection table, and CSV export
 - **Classification** — category breakdown with a donut chart and per category confidence
-- **Reports and export** — generated report history, the citizen report queue, and CSV export of citizen submissions
+- **Reports and export** — generated report history, the full citizen report queue with a status control and detail view, and CSV or JSON export filtered by status
 
 ## Citizen workflow
 
 1. Open the homepage and choose "Report Pollution"
-2. Upload a photo taken at the lake
-3. Get a quick read on coverage percentage, object count and severity
-4. Pick the zone, add a short note, and submit
-5. The report appears in the community feed and the authority queue, marked as under review
+2. Upload a single photo or video of what was found
+3. For photos, get a quick read on coverage percentage, object count and severity. Videos skip this until frame extraction is connected to a real backend
+4. Share device location, or place a pin manually if permission is denied, then adjust it on the map if needed
+5. Add a short note, then submit
+6. The report appears in the community feed and the authority queue, marked as submitted
 
 ## Authority workflow
 
 1. Sign in from the homepage or the dashboard login
 2. Review the day's KPIs, alerts and zone status on the overview page
-3. Check the citizen report queue on the reports page, alongside generated PDF summaries
-4. Run segmentation or detection manually on a specific survey frame if needed
-5. Export data as CSV for further analysis or reporting
+3. Open the reports page, filter the citizen queue by status, and click into any report to see its media, coordinates and map location
+4. Update a report's status as it moves through review, or mark it resolved directly
+5. Run segmentation or detection manually on a specific survey frame if needed
+6. Export the queue as CSV or JSON for further analysis or reporting
 
 ## AI pipeline
 
@@ -205,8 +210,9 @@ The trained model is a YOLOv8 instance segmentation network, built on the Dal La
 ## Future improvements
 
 - Real authentication with distinct citizen and authority roles
-- An actual GIS map instead of the current placeholder, using the zone coordinates already present in the data layer
-- Photo storage, so uploaded images persist beyond the browser session
+- A proper Google Maps integration in place of the current Leaflet and OpenStreetMap map, if a billing enabled Google Maps Platform key becomes available. The map component is isolated in one file, swapping providers shouldn't touch the surrounding pages.
+- A dedicated GIS heatmap module for the authority dashboard, using the zone coordinates already present in the data layer
+- Media storage, so uploaded photos and videos persist beyond the browser session
 - A moderation step for citizen reports before they appear in the public feed
 - Push or email notification when a report is marked resolved
 

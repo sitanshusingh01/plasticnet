@@ -60,12 +60,12 @@ const ALERT_TONE = {
 }
 
 const CITIZEN_REPORT_COLUMNS = [
-  { key: 'id', header: 'Report ID' },
+  { key: 'reportId', header: 'Report ID' },
   { key: 'zone', header: 'Zone' },
   { key: 'description', header: 'Description' },
   { key: 'submittedBy', header: 'Submitted By' },
-  { key: 'status', header: 'Status', render: (row) => <ZoneBadge kind="report" value={row.status} /> },
-  { key: 'timestamp', header: 'Reported', render: (row) => formatRelativeTime(row.timestamp) }
+  { key: 'reportStatus', header: 'Status', render: (row) => <ZoneBadge kind="report" value={row.reportStatus} /> },
+  { key: 'uploadedAt', header: 'Reported', render: (row) => formatRelativeTime(row.uploadedAt) }
 ]
 
 export default function Overview() {
@@ -285,7 +285,7 @@ export default function Overview() {
           </Link>
         </div>
         <div className="mt-4">
-          {!citizenReports ? <Loader /> : <DataTable columns={CITIZEN_REPORT_COLUMNS} rows={citizenReports} />}
+          {!citizenReports ? <Loader /> : <DataTable columns={CITIZEN_REPORT_COLUMNS} rows={citizenReports} keyField="reportId" />}
         </div>
       </div>
     </div>

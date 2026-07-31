@@ -15,6 +15,7 @@ import {
   citizenReports,
   currentUser
 } from '../data/mockData'
+import { buildReportFilename } from '../utils/format.js'
 
 // The backend isn't live yet. USE_MOCK stays true until the FastAPI service
 // is deployed, at which point this flips and every function below calls the
@@ -31,6 +32,14 @@ const client = axios.create({
 function delay(data, ms = 380) {
   return new Promise((resolve) => setTimeout(() => resolve(data), ms))
 }
+
+// citizenReports from mockData is treated as seed data, a fresh copy lives
+// here so submitted reports and status changes are visible immediately
+// across the app for the rest of the browser session. This resets on
+// reload, which is expected, there's no database behind it yet.
+let citizenReportStore = [...citizenReports]
+
+let reportSequence = citizenReportStore.length
 
 export async function login(email, password) {
   if (USE_MOCK) {
@@ -163,30 +172,68 @@ export async function getRecentReports() {
 }
 
 export async function getCitizenReports() {
-  if (USE_MOCK) return delay(citizenReports, 300)
+  if (USE_MOCK) return delay([...citizenReportStore].sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt)), 300)
   // GET /citizen-reports
   const { data } = await client.get('/citizen-reports')
   return data
 }
 
-// The citizen report form calls this after an image has been analysed.
-// Mock mode just echoes back a plausible record, once the backend exists
-// this becomes the row it actually stores for the authority queue.
+// Builds the full report record client side today. Once FastAPI exists,
+// the server assigns reportId and filename instead and this becomes a
+// straightforward POST with the media file attached.
 export async function submitCitizenReport(report) {
   if (USE_MOCK) {
-    return delay(
-      {
-        id: `CR-${Math.floor(Math.random() * 900 + 100)}`,
-        status: 'under-review',
-        timestamp: new Date().toISOString(),
-        ...report
-      },
-      500
-    )
+    reportSequence += 1
+    const reportId = `CR-${500 + reportSequence}`
+    const uploadedAt = new Date().toISOString()
+    const record = {
+      reportId,
+      filename: buildReportFilename(reportId, report.mediaType, uploadedAt),
+      reportStatus: 'submitted',
+      uploadedAt,
+      ...report
+    }
+    citizenReportStore = [record, ...citizenReportStore]
+    return delay(record, 500)
   }
-  // POST /citizen-reports
+  // POST /citizen-reports (multipart, media file plus the fields below)
   const { data } = await client.post('/citizen-reports', report)
   return data
+}
+
+// Authority side status update. Community Reports and the authority queue
+// both read from the same store, so a resolved report shows up as
+// resolved everywhere on the very next fetch, no separate sync step.
+export async function updateReportStatus(reportId, reportStatus) {
+  if (USE_MOCK) {
+    citizenReportStore = citizenReportStore.map((report) =>
+      report.reportId === reportId ? { ...report, reportStatus } : report
+    )
+    return delay(citizenReportStore.find((report) => report.reportId === reportId), 300)
+  }
+  // PATCH /citizen-reports/:id
+  const { data } = await client.patch(`/citizen-reports/${reportId}`, { reportStatus })
+  return data
+}
+
+// Nominatim is a free OpenStreetMap service, this call is real even in
+// mock mode since it has nothing to do with our own backend. If it fails
+// or is rate limited, the caller falls back to showing raw coordinates.
+export async function reverseGeocode(latitude, longitude) {
+  const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=14`
+  const response = await fetch(url, { headers: { Accept: 'application/json' } })
+  if (!response.ok) throw new Error('Reverse geocoding failed')
+  const data = await response.json()
+  const address = data.address || {}
+  const parts = [
+    address.suburb || address.neighbourhood || address.locality,
+    address.city || address.town || address.village,
+    address.state
+  ].filter(Boolean)
+  return {
+    label: parts.length ? parts.join(', ') : data.display_name || 'Unknown location',
+    address
+  }
 }
 
 // Called right after a file is picked, before segmentation or detection

@@ -317,54 +317,137 @@ export const recentReports = [
   { id: 'RPT-0089', title: 'Monthly Dal Lake Authority Brief, February', generatedOn: '2025-03-02T10:15:00+05:30', format: 'PDF' }
 ]
 
-// Citizen submitted reports. The submission form itself is on the Phase 2
-// roadmap, this dataset exists so the authority side can already display
-// and triage reports once citizens start filing them.
+// Canonical status list, in workflow order. Used by the authority status
+// update control so the dropdown always matches what ZoneBadge can render.
+export const REPORT_STATUSES = ['submitted', 'under-review', 'cleanup-scheduled', 'cleanup-in-progress', 'resolved']
+
+// Citizen submitted reports. Every field below is exactly what the backend
+// will populate once it exists, aiPrediction and the result placeholders
+// are mocked, everything else (id, filename, coordinates, timestamps) is
+// generated the same way a real submission would generate it.
 export const citizenReports = [
   {
-    id: 'CR-0512',
+    reportId: 'CR-0512',
+    filename: 'PLASTICNET_20250318_081500_CR-0512.jpg',
+    mediaType: 'image',
+    mediaPreviewUrl: null,
     zone: 'Floating Gardens',
     description: 'Heavy polythene buildup near the vegetable plots, visible from the shore path',
     submittedBy: 'Aamir K.',
-    status: 'cleanup-scheduled',
+    reportStatus: 'submitted',
     severity: 'high',
-    timestamp: '2025-03-18T08:15:00+05:30'
+    latitude: 34.127,
+    longitude: 74.879,
+    gpsAccuracy: 12,
+    locationName: 'Floating Gardens, Srinagar, Jammu and Kashmir',
+    timezone: 'Asia/Kolkata',
+    uploadedAt: '2025-03-18T08:15:00+05:30',
+    aiPrediction: { coveragePercent: 7.8, severity: 'high', objectsFound: 21 },
+    segmentationResult: { status: 'pending_backend', maskUrl: null },
+    detectionResult: { status: 'pending_backend', boundingBoxes: [] },
+    classificationResult: { status: 'pending_backend', categories: [] },
+    wasteCategorySummary: [
+      { category: 'Polythene', count: 14 },
+      { category: 'Wrapper', count: 5 }
+    ]
   },
   {
-    id: 'CR-0511',
+    reportId: 'CR-0511',
+    filename: 'PLASTICNET_20250318_074000_CR-0511.jpg',
+    mediaType: 'image',
+    mediaPreviewUrl: null,
     zone: 'Zero Bridge',
-    description: 'Wrappers and bottles collecting against the outflow gate after last night\'s wind',
+    description: "Wrappers and bottles collecting against the outflow gate after last night's wind",
     submittedBy: 'Zoya M.',
-    status: 'under-review',
+    reportStatus: 'under-review',
     severity: 'moderate',
-    timestamp: '2025-03-18T07:40:00+05:30'
+    latitude: 34.095,
+    longitude: 74.803,
+    gpsAccuracy: 15,
+    locationName: 'Zero Bridge, Srinagar, Jammu and Kashmir',
+    timezone: 'Asia/Kolkata',
+    uploadedAt: '2025-03-18T07:40:00+05:30',
+    aiPrediction: { coveragePercent: 5.9, severity: 'moderate', objectsFound: 16 },
+    segmentationResult: { status: 'pending_backend', maskUrl: null },
+    detectionResult: { status: 'pending_backend', boundingBoxes: [] },
+    classificationResult: { status: 'pending_backend', categories: [] },
+    wasteCategorySummary: [
+      { category: 'Wrapper', count: 9 },
+      { category: 'Bottle', count: 7 }
+    ]
   },
   {
-    id: 'CR-0510',
+    reportId: 'CR-0510',
+    filename: 'PLASTICNET_20250317_170500_CR-0510.jpg',
+    mediaType: 'image',
+    mediaPreviewUrl: null,
     zone: 'Central Dal',
     description: 'Floating debris trail spotted along the shikara route near ghat 9',
     submittedBy: 'Bilal A.',
-    status: 'verified',
+    reportStatus: 'cleanup-scheduled',
     severity: 'moderate',
-    timestamp: '2025-03-17T17:05:00+05:30'
+    latitude: 34.1225,
+    longitude: 74.8698,
+    gpsAccuracy: 10,
+    locationName: 'Dalgate, Srinagar, Jammu and Kashmir',
+    timezone: 'Asia/Kolkata',
+    uploadedAt: '2025-03-17T17:05:00+05:30',
+    aiPrediction: { coveragePercent: 6.4, severity: 'moderate', objectsFound: 18 },
+    segmentationResult: { status: 'pending_backend', maskUrl: null },
+    detectionResult: { status: 'pending_backend', boundingBoxes: [] },
+    classificationResult: { status: 'pending_backend', categories: [] },
+    wasteCategorySummary: [
+      { category: 'Bottle', count: 8 },
+      { category: 'Cap', count: 6 },
+      { category: 'Wrapper', count: 4 }
+    ]
   },
   {
-    id: 'CR-0509',
+    reportId: 'CR-0509',
+    filename: 'PLASTICNET_20250316_142000_CR-0509.jpg',
+    mediaType: 'image',
+    mediaPreviewUrl: null,
     zone: 'Northern Shore',
     description: 'Small cluster of foam packaging washed up near the Hazratbal ghat steps',
     submittedBy: 'Nusrat S.',
-    status: 'resolved',
+    reportStatus: 'cleanup-in-progress',
     severity: 'low',
-    timestamp: '2025-03-16T14:20:00+05:30'
+    latitude: 34.1401,
+    longitude: 74.8181,
+    gpsAccuracy: 9,
+    locationName: 'Hazratbal, Srinagar, Jammu and Kashmir',
+    timezone: 'Asia/Kolkata',
+    uploadedAt: '2025-03-16T14:20:00+05:30',
+    aiPrediction: { coveragePercent: 3.1, severity: 'low', objectsFound: 7 },
+    segmentationResult: { status: 'pending_backend', maskUrl: null },
+    detectionResult: { status: 'pending_backend', boundingBoxes: [] },
+    classificationResult: { status: 'pending_backend', categories: [] },
+    wasteCategorySummary: [{ category: 'Foam', count: 7 }]
   },
   {
-    id: 'CR-0508',
+    reportId: 'CR-0508',
+    filename: 'PLASTICNET_20250315_095000_CR-0508.jpg',
+    mediaType: 'image',
+    mediaPreviewUrl: null,
     zone: 'Southern Shore',
     description: 'Discarded shoes and packaging near the Nishat boat jetty',
     submittedBy: 'Owais R.',
-    status: 'resolved',
+    reportStatus: 'resolved',
     severity: 'low',
-    timestamp: '2025-03-15T09:50:00+05:30'
+    latitude: 34.129,
+    longitude: 74.8858,
+    gpsAccuracy: 11,
+    locationName: 'Nishat, Srinagar, Jammu and Kashmir',
+    timezone: 'Asia/Kolkata',
+    uploadedAt: '2025-03-15T09:50:00+05:30',
+    aiPrediction: { coveragePercent: 2.6, severity: 'low', objectsFound: 5 },
+    segmentationResult: { status: 'pending_backend', maskUrl: null },
+    detectionResult: { status: 'pending_backend', boundingBoxes: [] },
+    classificationResult: { status: 'pending_backend', categories: [] },
+    wasteCategorySummary: [
+      { category: 'Shoe', count: 3 },
+      { category: 'Wrapper', count: 2 }
+    ]
   }
 ]
 

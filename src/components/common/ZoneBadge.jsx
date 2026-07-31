@@ -11,18 +11,20 @@ const STATUS_STYLES = {
 }
 
 const REPORT_STYLES = {
+  submitted: 'bg-lake-light text-lake-dark dark:bg-lake/15 dark:text-lake',
   'under-review': 'bg-warning-light text-warning-dark dark:bg-warning/15 dark:text-warning',
-  verified: 'bg-lake-light text-lake-dark dark:bg-lake/15 dark:text-lake',
   'cleanup-scheduled': 'bg-primary-light text-primary dark:bg-primary/15',
+  'cleanup-in-progress': 'bg-primary-light text-primary dark:bg-primary/20',
   resolved: 'bg-surface-muted text-ink-faint dark:bg-night-muted dark:text-night-ink-faint'
 }
 
 const RISK_LABELS = { high: 'High Risk', moderate: 'Moderate Risk', low: 'Low Risk' }
 const STATUS_LABELS = { active: 'Active', scheduled: 'Scheduled', offline: 'Offline' }
 const REPORT_LABELS = {
+  submitted: 'Submitted',
   'under-review': 'Under Review',
-  verified: 'Verified',
   'cleanup-scheduled': 'Cleanup Scheduled',
+  'cleanup-in-progress': 'Cleanup In Progress',
   resolved: 'Resolved'
 }
 
