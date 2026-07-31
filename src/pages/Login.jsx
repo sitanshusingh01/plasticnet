@@ -48,14 +48,14 @@ export default function Login() {
 
         <div className="relative max-w-md">
           <p className="text-xs font-medium uppercase tracking-widest text-primary-light/80">
-            AI Powered Dal Lake Plastic Monitoring Platform
+            AI Powered Environmental Monitoring
           </p>
           <h1 className="mt-4 text-3xl font-semibold leading-tight text-white xl:text-4xl">
-            Protecting Dal Lake with computer vision and environmental analytics
+            Monitoring plastic pollution with computer vision and analytics
           </h1>
           <p className="mt-4 text-sm leading-relaxed text-white/60">
-            Upload a survey frame from Dal Lake and get plastic coverage, object detection and
-            waste classification back in seconds, built on our own Dal Lake annotation pipeline.
+            Upload a survey frame and get plastic coverage, object detection and waste
+            classification back in seconds, built on our own annotation pipeline.
           </p>
         </div>
 
@@ -66,7 +66,7 @@ export default function Login() {
           </div>
           <div>
             <p className="num text-xl font-semibold text-white">6</p>
-            <p className="mt-0.5 text-xs text-white/50">Dal Lake zones</p>
+            <p className="mt-0.5 text-xs text-white/50">Zones monitored</p>
           </div>
           <div>
             <p className="num text-xl font-semibold text-white">71/100</p>
@@ -86,7 +86,7 @@ export default function Login() {
 
           <h2 className="text-xl font-semibold text-ink">Sign in to PlasticNet AI</h2>
           <p className="mt-1.5 text-sm text-ink-muted">
-            Enter your credentials to access the Dal Lake monitoring dashboard
+            Enter your credentials to access the monitoring dashboard
           </p>
           <form onSubmit={handleSubmit} className="mt-7 space-y-4">
             <div>

@@ -1,109 +1,127 @@
 # PlasticNet AI
 
-AI powered plastic pollution monitoring built specifically for Dal Lake, Srinagar. The project pairs a citizen reporting tool with an authority dashboard, and it's being developed alongside a computer vision research effort at NIT Srinagar.
+AI powered plastic pollution monitoring, pairing a public reporting tool with an authority dashboard for reviewing and acting on what gets reported.
 
 Live app: https://sitanshusingh01.github.io/plasticnet/
 
-The frontend below is fully built. The AI model and backend are not connected yet, every number on screen comes from a mock data layer described further down. That's intentional, not a placeholder we forgot to remove.
+## Project Overview
 
-## Problem statement
+Plastic pollution in urban water bodies is usually tracked by hand. A survey team walks a shoreline, photographs what it finds, and the results end up in a spreadsheet somewhere. That process is slow, it depends entirely on whoever happens to be doing the survey that week, and the data rarely reaches anyone outside the team that collected it.
 
-Dal Lake's plastic pollution is well documented in survey reports and photographs, but that information rarely reaches the people who can act on it while it still matters. A shikara operator who notices a mass of polythene collecting near the ghat steps has no quick way to flag it. A municipal survey that finds a coverage spike in one zone usually ends up in a spreadsheet rather than somewhere the whole team can see it. PlasticNet AI tries to close that gap.
+PlasticNet AI is an attempt to shorten that loop. Anyone can photograph or film a polluted spot and submit it in a couple of minutes, with location attached automatically. On the other side, an authority team gets a single dashboard to review incoming reports, watch pollution trends over time, and act on them, backed by a computer vision model trained specifically to recognise plastic waste rather than a general purpose object detector.
 
-## Solution
+Together that's three pieces working off the same data: image and video capture, a segmentation and detection model, and a GIS aware dashboard tying it all to a real location.
 
-Two things, working off the same data:
+## Features
 
-- A citizen can photograph a spot on the lake, get an instant read on plastic coverage and severity, and send that as a report.
-- The authority team sees every report in one queue, alongside zone level analytics, detection history and category breakdowns, and can generate summaries for the Pollution Control Board and Municipal Corporation.
+### Public Portal
 
-## How PlasticNet AI works
+- Upload a single image or a single video of a polluted spot
+- Automatic GPS detection through the browser's location API
+- Interactive map to confirm or manually adjust the reported location
+- Instant AI analysis preview for photo uploads: coverage percentage, object count, severity
+- Community reports feed, public and browsable by anyone
+- Report status tracking, from submitted through to resolved
+- CSV and JSON export of report data
 
-1. A photo is taken at Dal Lake, either by a citizen through the public reporting page or by a field survey team.
-2. The image is analysed by our segmentation model, trained only on Dal Lake imagery, which returns plastic coverage percentage, object count and category breakdown.
-3. Citizen submissions become a report in the authority queue, tagged with zone, severity and a status the team can update as it's reviewed.
-4. Field survey uploads feed the segmentation and detection pages directly, useful for spot checks that don't need to go through the citizen flow.
-5. Everything rolls up into the dashboard: daily detection trends, coverage over time, category distribution, and zone by zone risk.
+### Authority Dashboard
 
-## System architecture
+- Report management: review, filter, and update the status of every citizen submission
+- Zone level pollution analytics and risk scoring
+- Waste category distribution and classification breakdown
+- Segmentation and detection tooling for manually uploaded survey frames
+- Cleanup status tracking, from submitted through to resolved
+- Historical trend charts for detections, coverage and pollution index
+- Dashboard KPIs and a live alerts feed
 
-The frontend never touches mock data or a model directly. Every page reads through one service layer:
+## System Workflow
 
 ```
-React Components  ->  src/services/api.js  ->  Mock Data (today)
-React Components  ->  src/services/api.js  ->  FastAPI Backend  ->  YOLOv8 Segmentation Model  ->  Database (once Phase 2 lands)
+User uploads a photo or video
+        |
+Location permission requested
+        |
+Map confirmation, pin adjustable by hand
+        |
+Frontend validation
+        |
+Backend API (Phase 2)
+        |
+AI model: segmentation and detection
+        |
+Coverage, severity and category statistics
+        |
+Database (Phase 2)
+        |
+Authority dashboard
+        |
+Community reports
 ```
 
-`USE_MOCK` in `api.js` is the single switch. Every exported function already has its intended REST endpoint noted in a comment directly above the mock branch, so turning on the real backend means changing implementations inside that one file. No page, chart, or component should need to change.
+## Technology Stack
 
-## Current progress
+- **React 18** — the interface itself, chosen for the component model and the size of its ecosystem
+- **Vite** — build tool and dev server, changes show up almost instantly while working on it
+- **Tailwind CSS** — utility first styling, keeps the design system consistent without a separate stylesheet per component
+- **React Router** — client side routing between the public pages and the authenticated dashboard
+- **Recharts** — every chart on the dashboard, trend lines, bar charts, and the category donut
+- **Leaflet and OpenStreetMap** — the interactive map used to confirm and adjust a report's coordinates. This stands in for Google Maps, which needs a billing enabled API key that isn't set up yet. The map lives in one component, so switching providers later is a small, contained change
+- **FastAPI** (Phase 2) — the planned Python backend that will serve the trained model and store reports in a real database
+- **YOLOv8 instance segmentation** (Phase 2) — the model architecture being trained on the project's own dataset
+- **Roboflow** — used to annotate the training dataset
+- **COCO format** — the annotation format the dataset is stored in
+- **GitHub Pages** — hosting for the deployed frontend
+- **GitHub Actions** — builds and deploys the app automatically on every push to `main`
 
-What's built and working right now:
-
-- Public homepage, generic and welcoming rather than branded around any one location, with separate entry points for citizens and the review team
-- Citizen reporting flow: upload a single photo or video, share your location, adjust the pin on an interactive map, and submit
-- Automatic reverse geocoding of the reported coordinates to a readable place name, using OpenStreetMap's Nominatim service
-- Community reports feed, a public log of everything citizens have submitted, with CSV and JSON export
-- Authority sign in (mocked, accepts any email and password)
-- Dashboard overview with eight KPI cards, five charts, a six zone monitoring panel and a live alerts feed
-- Segmentation page with tabbed mask, overlay and heatmap previews
-- Object detection page with a bounding box preview and a working CSV export
-- Classification page with an animated category breakdown
-- Reports and export page: generated report history, the full citizen report queue with a status update control, a detail view with media and location, and CSV or JSON export filtered by status
-- Dark mode across the entire app
-- Responsive layout down to mobile, including a slide out sidebar
-
-What's stubbed out as Phase 2, visible in the sidebar with a small tag so it's clear what's not real yet:
-
-- Regression analysis
-- Live camera feeds
-- Batch image and video processing
-- GIS mapping with an interactive Dal Lake map
-- Field validation of AI detections against ground truth
-
-## Future roadmap
-
-The next milestone is connecting the trained model. In order, that means:
-
-1. Standing up the FastAPI service and wiring `USE_MOCK = false`
-2. Replacing the mock responses in `api.js` with real HTTP calls, one function at a time
-3. Storing citizen reports and survey uploads in an actual database instead of the browser session
-4. Building the GIS map and pollution heatmap once real coordinates and coverage data exist
-5. Adding authentication that distinguishes authority roles, rather than the single mocked account used today
-
-## Technology stack
-
-- React 18 with Vite
-- React Router for client side routing
-- Tailwind CSS for styling
-- Recharts for charts
-- Leaflet and react-leaflet for the location confirmation map, using OpenStreetMap tiles
-- Browser Geolocation API for capturing device location, OpenStreetMap Nominatim for reverse geocoding
-- Axios, wired up and ready for the FastAPI backend
-- Lucide React for icons
-- Context API with `useReducer` for auth, theme and sidebar state
-- GitHub Actions for build and deploy, GitHub Pages for hosting
-
-## Folder structure
+## Folder Structure
 
 ```
 src/
-  components/
-    common/     StatCard, ChartCard, MetricCard, ZoneBadge, DataTable,
-                UploadCard, PageHeader, Loader, WaterlinePattern
-    layout/     Sidebar, Navbar, PublicHeader
-  context/      DashboardContext, auth and UI state
-  data/         mockData.js, the single source of truth for every number
-                and label shown anywhere in the app
-  hooks/        useDashboard
-  layouts/      DashboardLayout, wraps the authenticated sidebar and navbar
-  pages/        Home, Login, CitizenReport, CommunityReports, Overview,
-                Segmentation, Detection, Classification, Reports, ComingSoon
-  routes/       AppRoutes, ProtectedRoute
-  services/     api.js, the only file allowed to know whether data is
-                mocked or real
-  utils/        formatting helpers for relative time and dates
+  components/   Reusable UI pieces: cards, tables, badges, the upload
+                widget, the location map
+  pages/        One file per route: home, login, citizen report,
+                community reports, dashboard, segmentation, and so on
+  layouts/      Wraps the authenticated pages with the sidebar and navbar
+  services/     api.js, the only file that knows whether data is mocked
+                or coming from a real backend
+  hooks/        Small reusable hooks, currently just useDashboard
+  utils/        Formatting helpers, the geolocation wrapper, filename
+                generation
+  data/         mockData.js, every number and label shown anywhere in
+                the app lives here
+  context/      Auth, theme and sidebar state
+  routes/       Route definitions and the auth guard
+public/         Static assets served as-is, favicon and similar
 ```
+
+## Current Status
+
+The frontend is complete. Every page, chart and table here is real, working UI, not a mockup. What's mocked is the data behind it, there's no backend yet, so `src/services/api.js` returns realistic sample data instead of calling a real API.
+
+That file is deliberately the only place in the codebase that knows the difference. Every component asks the service layer for data and renders whatever comes back, with no idea whether that data was generated locally or fetched from a server. When the backend is ready, the plan is to change the implementations inside `api.js` and leave the rest of the app untouched.
+
+## Future Roadmap
+
+- Stand up the FastAPI backend
+- Connect the trained YOLOv8 segmentation and detection model
+- Add a real database for reports, users and detection history
+- Real time report updates instead of the current per session mock store
+- Live analytics fed by actual detections rather than sample data
+- A dedicated GIS monitoring view with a pollution heatmap
+- A fuller complaint management workflow for the authority team, beyond the current status control
+- Authority actions like assigning a report to a field team or attaching cleanup photos
+
+## Dataset
+
+The model is trained on a dataset built specifically for this project, not a general purpose plastic dataset pulled from somewhere else.
+
+- 307 images
+- 1,760 polygon annotations
+- 6 plastic waste classes: bottle, cap, wrapper, polythene, shoe, foam
+- Annotated in Roboflow
+- Stored in COCO instance segmentation format
+
+It was collected and annotated specifically for research and model training, with the pilot site currently centred on Dal Lake, Srinagar.
 
 ## Installation
 
@@ -111,115 +129,30 @@ src/
 git clone https://github.com/sitanshusingh01/plasticnet.git
 cd plasticnet
 npm install
-```
-
-## Development
-
-```bash
 npm run dev
 ```
 
-Runs at `http://localhost:5173`. The authority login accepts any email and password, there's no real auth yet.
+Runs at `http://localhost:5173`. The authority login accepts any email and password, there's no real authentication behind it yet.
+
+Production build:
 
 ```bash
-npm run build     # production build to dist/
-npm run preview   # preview that build locally
+npm run build
+npm run preview
 ```
 
 ## Deployment
 
-Pushing to `main` triggers `.github/workflows/deploy.yml`, which builds the app and publishes it to GitHub Pages automatically. No manual deploy step. The app uses `HashRouter` rather than `BrowserRouter` specifically so that refreshing a route like `/dashboard` doesn't 404 on Pages, which only serves the single `index.html` it's given.
+The project is deployed with GitHub Pages. Every push to `main` triggers `.github/workflows/deploy.yml`, which builds the app and publishes it automatically. There's no manual deploy step.
 
-## Backend integration
+## Contributing
 
-When the FastAPI service is ready:
-
-1. Set `USE_MOCK = false` in `src/services/api.js`
-2. Point `VITE_API_BASE_URL` at the deployed API, through an `.env` file or your hosting provider's environment settings
-3. Replace each function's mock branch with its real call, the endpoint is already commented above every one
-
-The expected request path once that's done:
-
-```
-Citizen uploads photo
-  -> React sends the image to FastAPI
-  -> FastAPI preprocesses and runs the YOLOv8 instance segmentation model
-  -> Model returns waste categories, object count, coverage percentage,
-     confidence scores and severity
-  -> Backend stores the result
-  -> JSON response comes back through the service layer
-  -> Dashboard, charts, segmentation view and citizen report queue
-     update on their own, no UI changes required
-```
-
-## Dataset
-
-The segmentation and detection model is trained on a dataset built specifically for this project, not a general purpose plastic dataset.
-
-- 307 images, all captured at Dal Lake, Srinagar
-- 1,760 polygon annotations
-- 6 waste categories: bottle, cap, wrapper, polythene, shoe, foam
-- COCO instance segmentation format
-- Annotated in Roboflow
-- Built as part of a research project at NIT Srinagar
-
-## Project workflow
-
-```
-Image capture (citizen or field survey)
-        |
-Segmentation and detection model
-        |
-Coverage, object count, category and severity
-        |
-Dashboard, charts, and citizen report queue
-        |
-Authority review, prioritisation and reporting
-```
-
-## Dashboard modules
-
-- **Overview** — KPI cards, detection and coverage trends, category distribution, zone by zone risk, live alerts and the recent citizen report feed
-- **Segmentation** — upload a frame, preview the mask, overlay and heatmap outputs, and browse recent segmentation runs
-- **Detection** — bounding box preview over an uploaded frame, a detection table, and CSV export
-- **Classification** — category breakdown with a donut chart and per category confidence
-- **Reports and export** — generated report history, the full citizen report queue with a status control and detail view, and CSV or JSON export filtered by status
-
-## Citizen workflow
-
-1. Open the homepage and choose "Report Pollution"
-2. Upload a single photo or video of what was found
-3. For photos, get a quick read on coverage percentage, object count and severity. Videos skip this until frame extraction is connected to a real backend
-4. Share device location, or place a pin manually if permission is denied, then adjust it on the map if needed
-5. Add a short note, then submit
-6. The report appears in the community feed and the authority queue, marked as submitted
-
-## Authority workflow
-
-1. Sign in from the homepage or the dashboard login
-2. Review the day's KPIs, alerts and zone status on the overview page
-3. Open the reports page, filter the citizen queue by status, and click into any report to see its media, coordinates and map location
-4. Update a report's status as it moves through review, or mark it resolved directly
-5. Run segmentation or detection manually on a specific survey frame if needed
-6. Export the queue as CSV or JSON for further analysis or reporting
-
-## AI pipeline
-
-The trained model is a YOLOv8 instance segmentation network, built on the Dal Lake dataset described above. It isn't connected to this frontend yet. Once the FastAPI service is deployed, the pipeline is: image in, preprocessing, segmentation and detection, coverage and category statistics out, all behind the same `runSegmentation` and `runDetection` calls the UI already makes in mock mode.
-
-## Future improvements
-
-- Real authentication with distinct citizen and authority roles
-- A proper Google Maps integration in place of the current Leaflet and OpenStreetMap map, if a billing enabled Google Maps Platform key becomes available. The map component is isolated in one file, swapping providers shouldn't touch the surrounding pages.
-- A dedicated GIS heatmap module for the authority dashboard, using the zone coordinates already present in the data layer
-- Media storage, so uploaded photos and videos persist beyond the browser session
-- A moderation step for citizen reports before they appear in the public feed
-- Push or email notification when a report is marked resolved
-
-## Contribution
-
-This is currently a small team project (NIT Srinagar research group). If you'd like to contribute, open an issue describing the change before sending a pull request, since the mock data layer and service architecture are deliberately structured a certain way and any change should keep that separation intact.
+This is currently a small research project maintained alongside separate model training work. If you'd like to contribute, open an issue describing the change first, particularly for anything touching the service layer or the mock data shape, since the backend integration plan depends on that structure staying consistent.
 
 ## License
 
-Not yet decided. Treat this repository as source available for now, reach out before reusing it elsewhere.
+Released under the MIT License, see [LICENSE](./LICENSE).
+
+```
+Copyright (c) 2026 Sitanshu Singh
+```

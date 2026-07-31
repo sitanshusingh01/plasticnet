@@ -115,10 +115,7 @@ export default function Home() {
           <span className="flex items-center gap-1.5 font-medium text-ink-muted dark:text-night-ink-muted">
             <Leaf size={13} className="text-primary" /> PlasticNet AI
           </span>
-          <p>
-            Built by a research team at NIT Srinagar, currently piloted at Dal Lake, Srinagar, with
-            the Municipal Corporation.
-          </p>
+          <p>An AI powered environmental monitoring project, currently in active development.</p>
         </div>
       </footer>
     </div>

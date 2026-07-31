@@ -452,8 +452,8 @@ export const citizenReports = [
 ]
 
 export const currentUser = {
-  name: 'Sitanshu Singh',
-  role: 'Research Lead',
-  department: 'PlasticNet AI, Dal Lake Monitoring Dashboard',
-  initials: 'SS'
+  name: 'Research Officer',
+  role: 'Authority Reviewer',
+  department: 'PlasticNet AI Monitoring Dashboard',
+  initials: 'RO'
 }
