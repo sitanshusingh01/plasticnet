@@ -4,3 +4,12 @@ dist
 .env.local
 *.log
 .DS_Store
+
+# Backend runtime artifacts, not source. Weights ARE tracked, they're the
+# actual trained models this service depends on, not a build output.
+backend/venv
+backend/__pycache__
+backend/**/__pycache__
+backend/outputs/*.png
+backend/temp/*
+backend/logs/*.log

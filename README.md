@@ -66,8 +66,8 @@ Community reports
 - **React Router** — client side routing between the public pages and the authenticated dashboard
 - **Recharts** — every chart on the dashboard, trend lines, bar charts, and the category donut
 - **Leaflet and OpenStreetMap** — the interactive map used to confirm and adjust a report's coordinates. This stands in for Google Maps, which needs a billing enabled API key that isn't set up yet. The map lives in one component, so switching providers later is a small, contained change
-- **FastAPI** (Phase 2) — the planned Python backend that will serve the trained model and store reports in a real database
-- **YOLOv8 instance segmentation** (Phase 2) — the model architecture being trained on the project's own dataset
+- **FastAPI** — the Python inference backend, built and tested locally (`backend/`), not yet deployed anywhere the live site can reach. See `backend/README.md`
+- **FastSCNN, BiSeNetV2, ENet, MobileNetV2Seg** — four trained binary segmentation models (plastic vs. background), swappable via a one-line config change in the backend. FastSCNN is the current default
 - **Roboflow** — used to annotate the training dataset
 - **COCO format** — the annotation format the dataset is stored in
 - **GitHub Pages** — hosting for the deployed frontend
@@ -92,18 +92,25 @@ src/
   context/      Auth, theme and sidebar state
   routes/       Route definitions and the auth guard
 public/         Static assets served as-is, favicon and similar
+backend/        FastAPI inference service, see backend/README.md, not
+                yet deployed anywhere the live frontend can reach
 ```
 
 ## Current Status
 
-The frontend is complete. Every page, chart and table here is real, working UI, not a mockup. What's mocked is the data behind it, there's no backend yet, so `src/services/api.js` returns realistic sample data instead of calling a real API.
+The frontend is complete. Every page, chart and table here is real, working UI, not a mockup.
 
-That file is deliberately the only place in the codebase that knows the difference. Every component asks the service layer for data and renders whatever comes back, with no idea whether that data was generated locally or fetched from a server. When the backend is ready, the plan is to change the implementations inside `api.js` and leave the rest of the app untouched.
+The inference backend now exists too, in `backend/`. It loads one of four trained segmentation models (FastSCNN by default), runs real predictions, and was tested end to end: image in, mask and coverage percentage out, correct error handling for bad uploads. It is not deployed anywhere yet, and `src/services/api.js` still has `USE_MOCK = true`, so the live site continues to show mock data until the backend is hosted somewhere reachable and that flag is flipped. See `backend/README.md` for the exact steps.
+
+One thing worth knowing: the trained models classify each pixel as plastic or background only. They don't distinguish bottle from wrapper from polythene. The per-category breakdown shown elsewhere in the dashboard is still illustrative sample data, that requires a multi-class model that doesn't exist yet.
+
+`src/services/api.js` is deliberately the only frontend file that knows whether data is mocked or real. Every component asks it for data and renders whatever comes back.
 
 ## Future Roadmap
 
-- Stand up the FastAPI backend
-- Connect the trained YOLOv8 segmentation and detection model
+- Deploy the FastAPI backend somewhere it stays running (GitHub Pages can't host it, it's static only) and point the live site at it
+- Train a multi-class model for real per-category breakdown (bottle, cap, wrapper, polythene, shoe, foam), the current models only do binary plastic/background
+- A detection model, for individual object counting rather than connected-region counting
 - Add a real database for reports, users and detection history
 - Real time report updates instead of the current per session mock store
 - Live analytics fed by actual detections rather than sample data

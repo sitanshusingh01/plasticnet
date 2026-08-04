@@ -54,12 +54,15 @@ export default function CitizenReport() {
       setAnalysisStatus('running')
       analyzedFileRef.current = selected
       await uploadImage(selected)
-      await runSegmentation(selected)
+      const job = await runSegmentation(selected)
       if (analyzedFileRef.current !== selected) return
-      const coveragePercent = Number((Math.random() * 8 + 3).toFixed(1))
+      // Same pattern as Segmentation.jsx: use the real prediction when the
+      // backend provides it, fall back to the existing mock generator when
+      // it doesn't (USE_MOCK=true today).
+      const coveragePercent = job.coveragePercent ?? Number((Math.random() * 8 + 3).toFixed(1))
       setAnalysis({
         coveragePercent,
-        objectsFound: Math.floor(Math.random() * 16 + 6),
+        objectsFound: job.objectsFound ?? Math.floor(Math.random() * 16 + 6),
         severity: severityFromCoverage(coveragePercent)
       })
       setAnalysisStatus('complete')

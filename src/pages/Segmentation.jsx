@@ -64,11 +64,15 @@ export default function Segmentation() {
     if (!file) return
     setStatus('running')
     const job = await runSegmentation(file)
+    // job already has coveragePercent/objectsFound/processingTime once the
+    // real backend is connected (USE_MOCK=false in services/api.js). The
+    // ?? fallback keeps today's mock behaviour identical when those fields
+    // aren't present, so this works unmodified in both modes.
     setResult({
       ...job,
-      coveragePercent: (Math.random() * 6 + 4).toFixed(1),
-      objectsFound: Math.floor(Math.random() * 20 + 18),
-      processingTime: `${(Math.random() * 1.5 + 1.2).toFixed(1)}s`
+      coveragePercent: job.coveragePercent ?? (Math.random() * 6 + 4).toFixed(1),
+      objectsFound: job.objectsFound ?? Math.floor(Math.random() * 20 + 18),
+      processingTime: job.processingTime ?? `${(Math.random() * 1.5 + 1.2).toFixed(1)}s`
     })
     setStatus('complete')
   }
