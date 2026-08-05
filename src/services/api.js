@@ -10,23 +10,40 @@ import {
   liveAlerts,
   detectionRecords,
   classificationSummary,
-  segmentationSamples,
   recentReports,
   citizenReports,
   currentUser
 } from '../data/mockData'
 import { buildReportFilename } from '../utils/format.js'
 
-// The backend isn't live yet. USE_MOCK stays true until the FastAPI service
-// is deployed, at which point this flips and every function below calls the
-// real endpoint instead of returning static data. Base URL will come from
-// an env var (VITE_API_BASE_URL) once that happens. Nothing outside this
-// file should ever import mockData directly, components go through here.
-const USE_MOCK = true
+// Segmentation is live: runSegmentation() below always calls the deployed
+// FastAPI backend on Render and never returns mock data. The rest of the
+// dashboard (analytics, alerts, reports, auth, detection) still has no
+// backend endpoints, so those functions keep serving the same sample data
+// they always have, gated by USE_MOCK_DASHBOARD, until those endpoints
+// exist. Nothing outside this file should ever import mockData directly.
+const USE_MOCK_DASHBOARD = true
 
+// Base URL for the inference API. VITE_API_BASE_URL is read at build time
+// (see .env.example); the deployed Render service is the fallback so a
+// build without the env var still points at the real backend.
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || 'https://plasticnet-backend.onrender.com/api'
+).replace(/\/+$/, '')
+
+// The backend returns maskUrl/overlayUrl as paths relative to its own
+// origin (e.g. /outputs/JOB-xxxx_mask.png). This strips the trailing /api
+// so those paths can be turned into absolute URLs the browser can load
+// from the GitHub Pages origin.
+export const API_ORIGIN = API_BASE_URL.replace(/\/api$/, '')
+
+// 120s timeout: a Render free-instance cold start has to spin up the
+// container, load the model and run a warmup pass before the first
+// request is served, which can take well over a minute. A short timeout
+// here would turn every cold start into a spurious failure.
 const client = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api',
-  timeout: 10000
+  baseURL: API_BASE_URL,
+  timeout: 120000
 })
 
 function delay(data, ms = 380) {
@@ -42,7 +59,7 @@ let citizenReportStore = [...citizenReports]
 let reportSequence = citizenReportStore.length
 
 export async function login(email, password) {
-  if (USE_MOCK) {
+  if (USE_MOCK_DASHBOARD) {
     return delay({
       token: 'mock-token-8f2c',
       user: { ...currentUser, email }
@@ -54,135 +71,94 @@ export async function login(email, password) {
 }
 
 export async function getDashboardStats() {
-  if (USE_MOCK) return delay(kpiMetrics)
+  if (USE_MOCK_DASHBOARD) return delay(kpiMetrics)
   // GET /dashboard/stats
   const { data } = await client.get('/dashboard/stats')
   return data
 }
 
 export async function getDetectionTrend() {
-  if (USE_MOCK) return delay(dailyDetectionTrend)
+  if (USE_MOCK_DASHBOARD) return delay(dailyDetectionTrend)
   // GET /dashboard/detection-trend?range=14d
   const { data } = await client.get('/dashboard/detection-trend')
   return data
 }
 
 export async function getWeeklyCollection() {
-  if (USE_MOCK) return delay(weeklyCollection)
+  if (USE_MOCK_DASHBOARD) return delay(weeklyCollection)
   // GET /dashboard/weekly-collection
   const { data } = await client.get('/dashboard/weekly-collection')
   return data
 }
 
 export async function getCategoryDistribution() {
-  if (USE_MOCK) return delay(categoryDistribution)
+  if (USE_MOCK_DASHBOARD) return delay(categoryDistribution)
   // GET /classification/category-distribution
   const { data } = await client.get('/classification/category-distribution')
   return data
 }
 
 export async function getCoverageTrend() {
-  if (USE_MOCK) return delay(coverageTrend)
+  if (USE_MOCK_DASHBOARD) return delay(coverageTrend)
   // GET /dashboard/coverage-trend
   const { data } = await client.get('/dashboard/coverage-trend')
   return data
 }
 
 export async function getPollutionIndexTrend() {
-  if (USE_MOCK) return delay(pollutionIndexTrend)
+  if (USE_MOCK_DASHBOARD) return delay(pollutionIndexTrend)
   // GET /dashboard/pollution-index-trend
   const { data } = await client.get('/dashboard/pollution-index-trend')
   return data
 }
 
 export async function getMonitoringZones() {
-  if (USE_MOCK) return delay(monitoringZones)
+  if (USE_MOCK_DASHBOARD) return delay(monitoringZones)
   // GET /zones
   const { data } = await client.get('/zones')
   return data
 }
 
-// Zone coordinates and plastic share doubling as heatmap intensity until
-// the backend produces a proper pixel level density grid per zone.
-export async function getPollutionHeatmap() {
-  if (USE_MOCK) {
-    return delay(
-      monitoringZones.map((zone) => ({
-        zone: zone.name,
-        coordinates: zone.coordinates,
-        intensity: zone.plasticShare
-      }))
-    )
-  }
-  // GET /zones/heatmap
-  const { data } = await client.get('/zones/heatmap')
-  return data
-}
-
 export async function getLiveAlerts() {
-  if (USE_MOCK) return delay(liveAlerts, 250)
+  if (USE_MOCK_DASHBOARD) return delay(liveAlerts, 250)
   // GET /alerts?limit=10
   const { data } = await client.get('/alerts')
   return data
 }
 
 export async function getDetectionRecords() {
-  if (USE_MOCK) return delay(detectionRecords)
+  if (USE_MOCK_DASHBOARD) return delay(detectionRecords)
   // GET /detections?zone=&type=&page=
   const { data } = await client.get('/detections')
   return data
 }
 
 export async function getClassificationSummary() {
-  if (USE_MOCK) return delay(classificationSummary)
+  if (USE_MOCK_DASHBOARD) return delay(classificationSummary)
   // GET /classification/summary
   const { data } = await client.get('/classification/summary')
   return data
 }
 
-// Rolls up the numbers an authority reviewer cares about across
-// classification and pollution trend, useful for a single dashboard call
-// instead of firing three separate requests.
-export async function getAuthorityAnalytics() {
-  if (USE_MOCK) {
-    return delay({
-      categoryDistribution,
-      classificationSummary,
-      coverageTrend,
-      pollutionIndexTrend
-    })
-  }
-  // GET /authority/analytics
-  const { data } = await client.get('/authority/analytics')
-  return data
-}
-
-export async function getSegmentationSamples() {
-  if (USE_MOCK) return delay(segmentationSamples)
-  // GET /segmentation/recent
-  const { data } = await client.get('/segmentation/recent')
-  return data
-}
-
 export async function getRecentReports() {
-  if (USE_MOCK) return delay(recentReports, 300)
+  if (USE_MOCK_DASHBOARD) return delay(recentReports, 300)
   // GET /reports/recent
   const { data } = await client.get('/reports/recent')
   return data
 }
 
 export async function getCitizenReports() {
-  if (USE_MOCK) return delay([...citizenReportStore].sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt)), 300)
+  if (USE_MOCK_DASHBOARD) return delay([...citizenReportStore].sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt)), 300)
   // GET /citizen-reports
   const { data } = await client.get('/citizen-reports')
   return data
 }
 
-// Builds the full report record client side today. Once FastAPI exists,
-// the server assigns reportId and filename instead and this becomes a
-// straightforward POST with the media file attached.
+// Builds the full report record client side today. Once report persistence
+// exists on the backend, the server assigns reportId and filename instead
+// and this becomes a straightforward POST with the media file attached.
 export async function submitCitizenReport(report) {
-  if (USE_MOCK) {
+  if (USE_MOCK_DASHBOARD) {
     reportSequence += 1
     const reportId = `CR-${500 + reportSequence}`
     const uploadedAt = new Date().toISOString()
@@ -205,7 +181,7 @@ export async function submitCitizenReport(report) {
 // both read from the same store, so a resolved report shows up as
 // resolved everywhere on the very next fetch, no separate sync step.
 export async function updateReportStatus(reportId, reportStatus) {
-  if (USE_MOCK) {
+  if (USE_MOCK_DASHBOARD) {
     citizenReportStore = citizenReportStore.map((report) =>
       report.reportId === reportId ? { ...report, reportStatus } : report
     )
@@ -216,9 +192,9 @@ export async function updateReportStatus(reportId, reportStatus) {
   return data
 }
 
-// Nominatim is a free OpenStreetMap service, this call is real even in
-// mock mode since it has nothing to do with our own backend. If it fails
-// or is rate limited, the caller falls back to showing raw coordinates.
+// Nominatim is a free OpenStreetMap service, this call is real and has
+// nothing to do with our own backend. If it fails or is rate limited, the
+// caller falls back to showing raw coordinates.
 export async function reverseGeocode(latitude, longitude) {
   const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${latitude}&lon=${longitude}&zoom=14`
   const response = await fetch(url, { headers: { Accept: 'application/json' } })
@@ -236,64 +212,113 @@ export async function reverseGeocode(latitude, longitude) {
   }
 }
 
-// Called right after a file is picked, before segmentation or detection
-// runs. Today this just stands in a mock reference, once the backend
-// exists it will actually hand the file to FastAPI and get back a
-// storage key that runSegmentation and runDetection can reuse.
-export async function uploadImage(file) {
-  if (USE_MOCK) {
-    return delay(
-      {
-        imageId: `IMG-${Math.floor(Math.random() * 9000 + 1000)}`,
-        filename: file?.name || 'upload.jpg',
-        sizeBytes: file?.size || 0
-      },
-      450
-    )
+// ---------------------------------------------------------------------------
+// Real segmentation, no mock path below this line.
+// ---------------------------------------------------------------------------
+
+// True for the failure modes a sleeping Render instance produces: no
+// response at all (connection refused / dropped while the container spins
+// up), a gateway error from Render's proxy while the service is starting
+// (502/503/504), or our own timeout expiring during the cold start.
+function isColdStartError(error) {
+  if (!error) return false
+  if (error.code === 'ECONNABORTED') return true
+  if (!error.response) return true
+  return [502, 503, 504].includes(error.response.status)
+}
+
+// Normalises any axios failure into an Error whose message is safe and
+// useful to show directly in the UI. Backend error bodies are
+// {"detail": "human readable message"} (FastAPI HTTPException), which is
+// written to be user-facing, so it's preferred whenever present.
+function toApiError(error) {
+  if (error.response) {
+    const status = error.response.status
+    const detail =
+      typeof error.response.data?.detail === 'string' ? error.response.data.detail : null
+    const fallbackByStatus = {
+      400: 'The uploaded file could not be processed. Use a JPG, PNG or WEBP image.',
+      404: 'The segmentation endpoint was not found on the backend. The backend deployment may be out of date.',
+      413: 'The image is too large for the backend to accept. Upload a smaller image.',
+      500: 'The AI backend hit an unexpected error processing this image. Try again or use a different image.',
+      503: 'The AI backend is temporarily unavailable. Try again in a minute.'
+    }
+    const apiError = new Error(detail || fallbackByStatus[status] || `The AI backend returned an error (HTTP ${status}).`)
+    apiError.status = status
+    return apiError
   }
-  const form = new FormData()
-  form.append('file', file)
-  const { data } = await client.post('/images/upload', form, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  })
-  return data
-}
-
-async function runInference(file, mode) {
-  if (USE_MOCK) {
-    return delay(
-      {
-        jobId: `JOB-${Math.floor(Math.random() * 9000 + 1000)}`,
-        status: 'queued',
-        mode,
-        filename: file?.name || 'upload.jpg'
-      },
-      900
-    )
+  if (error.code === 'ECONNABORTED') {
+    return new Error('The AI backend took too long to respond. It may be waking up from sleep, try again in a minute.')
   }
-  const form = new FormData()
-  form.append('file', file)
-  const { data } = await client.post(`/${mode}/run`, form, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  })
-  return data
+  return new Error('Could not reach the AI backend. Check your connection, or the server may be waking up, try again shortly.')
 }
 
-export function runSegmentation(file) {
-  // The trained YOLOv8 instance segmentation model will eventually sit
-  // behind this call, producing the mask, overlay and heatmap layers.
-  return runInference(file, 'segmentation')
+// Backend mask/overlay URLs are relative to the backend origin; make them
+// absolute so <img> tags on the GitHub Pages origin can load them.
+function toAbsoluteOutputUrl(path) {
+  if (!path) return null
+  return /^https?:\/\//.test(path) ? path : `${API_ORIGIN}${path}`
 }
 
-export function runDetection(file) {
-  return runInference(file, 'detection')
+// Runs one real segmentation prediction on the deployed backend.
+// POST {API_BASE_URL}/segmentation/run, multipart field name "file".
+// Retries exactly once if the first attempt fails in a way consistent
+// with a Render cold start; onRetry (optional) is called before the
+// retry so the UI can tell the user the backend is waking up.
+export async function runSegmentation(file, { onRetry } = {}) {
+  const send = () => {
+    const form = new FormData()
+    form.append('file', file)
+    // No manual Content-Type header: axios sets multipart/form-data with
+    // the correct boundary automatically for FormData bodies.
+    return client.post('/segmentation/run', form)
+  }
+
+  let data
+  try {
+    ({ data } = await send())
+  } catch (firstError) {
+    if (!isColdStartError(firstError)) {
+      throw toApiError(firstError)
+    }
+    if (onRetry) onRetry()
+    try {
+      ({ data } = await send())
+    } catch (secondError) {
+      throw toApiError(secondError)
+    }
+  }
+
+  return {
+    ...data,
+    maskUrl: toAbsoluteOutputUrl(data.maskUrl),
+    overlayUrl: toAbsoluteOutputUrl(data.overlayUrl),
+    heatmapUrl: toAbsoluteOutputUrl(data.heatmapUrl)
+  }
+}
+
+// There is no detection model or /detection/run endpoint on the backend
+// yet (the deployed models are binary segmentation only), so the
+// Detection page still runs on illustrative sample output. This stub
+// exists so that page keeps working until a real detection endpoint
+// ships; it is not part of the segmentation pipeline.
+export async function runDetection(file) {
+  return delay(
+    {
+      jobId: `JOB-${Math.floor(Math.random() * 9000 + 1000)}`,
+      status: 'queued',
+      mode: 'detection',
+      filename: file?.name || 'upload.jpg'
+    },
+    900
+  )
 }
 
 // Report generation is mocked as an instant success today. Once connected,
 // this will call the backend to render a PDF or CSV export and hand back
 // a signed download URL instead of a fake one.
 export async function exportReport(format = 'pdf') {
-  if (USE_MOCK) {
+  if (USE_MOCK_DASHBOARD) {
     return delay(
       {
         reportId: `RPT-${Math.floor(Math.random() * 900 + 100)}`,
