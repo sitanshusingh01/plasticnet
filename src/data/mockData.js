@@ -284,33 +284,6 @@ export const classificationSummary = [
   { category: 'Foam', count: 1741, avgConfidence: 0.86 }
 ]
 
-export const segmentationSamples = [
-  {
-    id: 'SEG-0417',
-    zone: 'Central Dal, ZN-02',
-    capturedAt: '2025-03-18T07:20:00+05:30',
-    coveragePercent: 8.2,
-    objectsFound: 34,
-    processingTime: '2.1s'
-  },
-  {
-    id: 'SEG-0416',
-    zone: 'Zero Bridge, ZN-06',
-    capturedAt: '2025-03-18T09:15:00+05:30',
-    coveragePercent: 9.7,
-    objectsFound: 41,
-    processingTime: '2.4s'
-  },
-  {
-    id: 'SEG-0415',
-    zone: 'Southern Shore, ZN-03',
-    capturedAt: '2025-03-18T08:05:00+05:30',
-    coveragePercent: 5.4,
-    objectsFound: 19,
-    processingTime: '1.8s'
-  }
-]
-
 export const recentReports = [
   { id: 'RPT-0091', title: 'Weekly Zone Summary, Week 11', generatedOn: '2025-03-17T18:00:00+05:30', format: 'PDF' },
   { id: 'RPT-0090', title: 'Dal Lake Coverage Assessment', generatedOn: '2025-03-14T12:30:00+05:30', format: 'PDF' },
