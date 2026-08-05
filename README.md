@@ -1,136 +1,147 @@
 # PlasticNet AI
 
-AI powered plastic pollution monitoring, pairing a public reporting tool with an authority dashboard for reviewing and acting on what gets reported.
+AI powered plastic pollution monitoring for Dal Lake, pairing a public reporting tool with an authority dashboard, backed by a deployed deep learning segmentation service that analyses every uploaded photo in real time.
 
-Live app: https://sitanshusingh01.github.io/plasticnet/
+**Live application:** https://sitanshusingh01.github.io/plasticnet/
+**Inference API:** https://plasticnet-backend.onrender.com/api
+**Interactive API docs (Swagger):** https://plasticnet-backend.onrender.com/docs
+
+Author: **Sitanshu Singh**
+
+---
 
 ## Project Overview
 
-Plastic pollution in urban water bodies is usually tracked by hand. A survey team walks a shoreline, photographs what it finds, and the results end up in a spreadsheet somewhere. That process is slow, it depends entirely on whoever happens to be doing the survey that week, and the data rarely reaches anyone outside the team that collected it.
+PlasticNet AI is a full-stack environmental monitoring platform. Members of the public photograph plastic pollution, attach a location, and submit a report in a couple of minutes. Every photo is analysed on upload by a trained semantic segmentation model that returns a pixel-level plastic mask, a visual overlay, the plastic coverage percentage, and a count of distinct plastic regions. An authority team reviews incoming reports on a dashboard, tracks their status from submitted through to resolved, and runs the same segmentation tooling on manually uploaded survey frames.
 
-PlasticNet AI is an attempt to shorten that loop. Anyone can photograph or film a polluted spot and submit it in a couple of minutes, with location attached automatically. On the other side, an authority team gets a single dashboard to review incoming reports, watch pollution trends over time, and act on them, backed by a computer vision model trained specifically to recognise plastic waste rather than a general purpose object detector.
+The system has three cooperating parts: a React single-page application, a FastAPI inference service running the trained models, and the pipeline of trained segmentation networks themselves.
 
-Together that's three pieces working off the same data: image and video capture, a segmentation and detection model, and a GIS aware dashboard tying it all to a real location.
+## Problem Statement
 
-## Features
+Plastic pollution in urban water bodies is usually tracked by hand. A survey team walks a shoreline, photographs what it finds, and the results end up in a spreadsheet. The process is slow, depends entirely on whoever happens to be surveying that week, and the data rarely reaches anyone outside the team that collected it. There is no fast path from "a resident notices plastic collecting at the water's edge" to "the responsible team knows about it, with a location and a quantified severity estimate."
 
-### Public Portal
+PlasticNet AI shortens that loop. Reporting takes minutes and requires no training. Quantification is automatic and consistent, because the same model measures every image the same way. And the results land in one shared dashboard instead of scattered spreadsheets.
 
-- Upload a single image or a single video of a polluted spot
-- Automatic GPS detection through the browser's location API
-- Interactive map to confirm or manually adjust the reported location
-- Instant AI analysis preview for photo uploads: coverage percentage, object count, severity
-- Community reports feed, public and browsable by anyone
-- Report status tracking, from submitted through to resolved
-- CSV and JSON export of report data
-
-### Authority Dashboard
-
-- Report management: review, filter, and update the status of every citizen submission
-- Zone level pollution analytics and risk scoring
-- Waste category distribution and classification breakdown
-- Segmentation and detection tooling for manually uploaded survey frames
-- Cleanup status tracking, from submitted through to resolved
-- Historical trend charts for detections, coverage and pollution index
-- Dashboard KPIs and a live alerts feed
-
-## System Workflow
+## System Architecture
 
 ```
-User uploads a photo or video
-        |
-Location permission requested
-        |
-Map confirmation, pin adjustable by hand
-        |
-Frontend validation
-        |
-Backend API (Phase 2)
-        |
-AI model: segmentation and detection
-        |
-Coverage, severity and category statistics
-        |
-Database (Phase 2)
-        |
-Authority dashboard
-        |
-Community reports
+                       Browser (React SPA on GitHub Pages)
+                                      |
+              multipart POST /api/segmentation/run  (axios)
+                                      |
+                    FastAPI inference service (Render)
+                                      |
+        preprocess -> Fast-SCNN forward pass -> postprocess
+                                      |
+       JSON response: coverage, object count, statistics,
+            mask PNG URL, overlay PNG URL (/outputs/...)
+                                      |
+              Browser renders real mask and overlay images
 ```
 
-## Technology Stack
+The frontend is fully static and deployed to GitHub Pages by GitHub Actions on every push to `main`. The backend is a persistent Python process on Render that loads the active model once at startup, runs a warmup pass, and then serves predictions. Cross-origin requests from the Pages origin are explicitly allowed by the backend's CORS configuration.
 
-- **React 18** — the interface itself, chosen for the component model and the size of its ecosystem
-- **Vite** — build tool and dev server, changes show up almost instantly while working on it
-- **Tailwind CSS** — utility first styling, keeps the design system consistent without a separate stylesheet per component
-- **React Router** — client side routing between the public pages and the authenticated dashboard
-- **Recharts** — every chart on the dashboard, trend lines, bar charts, and the category donut
-- **Leaflet and OpenStreetMap** — the interactive map used to confirm and adjust a report's coordinates. This stands in for Google Maps, which needs a billing enabled API key that isn't set up yet. The map lives in one component, so switching providers later is a small, contained change
-- **FastAPI** — the Python inference backend, built and tested locally (`backend/`), not yet deployed anywhere the live site can reach. See `backend/README.md`
-- **FastSCNN, BiSeNetV2, ENet, MobileNetV2Seg** — four trained binary segmentation models (plastic vs. background), swappable via a one-line config change in the backend. FastSCNN is the current default
-- **Roboflow** — used to annotate the training dataset
-- **COCO format** — the annotation format the dataset is stored in
-- **GitHub Pages** — hosting for the deployed frontend
-- **GitHub Actions** — builds and deploys the app automatically on every push to `main`
+Segmentation predictions are always real: the frontend displays only values returned by the backend and never fabricates coverage numbers, object counts, masks, or overlays. Dashboard analytics (trend charts, zone risk, alerts) are illustrative sample data until their backend endpoints exist; that boundary lives in exactly one file, `src/services/api.js`, and is clearly marked there.
 
 ## Folder Structure
 
 ```
 src/
-  components/   Reusable UI pieces: cards, tables, badges, the upload
-                widget, the location map
-  pages/        One file per route: home, login, citizen report,
-                community reports, dashboard, segmentation, and so on
-  layouts/      Wraps the authenticated pages with the sidebar and navbar
-  services/     api.js, the only file that knows whether data is mocked
-                or coming from a real backend
-  hooks/        Small reusable hooks, currently just useDashboard
+  components/   Reusable UI pieces: cards, tables, badges, upload widgets,
+                the Leaflet location map
+  pages/        One file per route: home, login, citizen report, community
+                reports, dashboard overview, segmentation, detection,
+                classification, reports queue
+  layouts/      Wraps authenticated pages with the sidebar and navbar
+  services/     api.js — the single file that talks to the backend and the
+                only file allowed to import sample data
+  hooks/        Small reusable hooks (useDashboard)
   utils/        Formatting helpers, the geolocation wrapper, filename
                 generation
-  data/         mockData.js, every number and label shown anywhere in
-                the app lives here
+  data/         mockData.js — sample data for dashboard modules whose
+                backend endpoints don't exist yet
   context/      Auth, theme and sidebar state
   routes/       Route definitions and the auth guard
-public/         Static assets served as-is, favicon and similar
-backend/        FastAPI inference service, see backend/README.md, not
-                yet deployed anywhere the live frontend can reach
+public/         Static assets served as-is
+backend/
+  app.py        FastAPI app: CORS, /outputs static mount, startup warmup
+  config.py     Model registry, ACTIVE_MODEL switch, class names/colours
+  settings.py   Upload limits, CORS origins, output retention
+  schemas.py    Pydantic response contracts
+  routes/       POST /segmentation/run, GET /segmentation/models
+  services/     Model loading/caching, preprocess, inference orchestration,
+                postprocess, mask/overlay rendering, output cleanup
+  models/       The four segmentation architectures
+  weights/      Trained checkpoints (tracked in git, ~77 MB total)
 ```
 
-## Current Status
+## Frontend
 
-The frontend is complete. Every page, chart and table here is real, working UI, not a mockup.
+React 18 with Vite. Routing uses `HashRouter`, which works on GitHub Pages without any server-side rewrite rules. The public portal (report form, community feed) needs no login; the authority dashboard sits behind a session guard.
 
-The inference backend now exists too, in `backend/`. It loads one of four trained segmentation models (FastSCNN by default), runs real predictions, and was tested end to end: image in, mask and coverage percentage out, correct error handling for bad uploads. It is not deployed anywhere yet, and `src/services/api.js` still has `USE_MOCK = true`, so the live site continues to show mock data until the backend is hosted somewhere reachable and that flag is flipped. See `backend/README.md` for the exact steps.
+When a user selects a photo on the report page, or clicks **Run AI** on the Segmentation page, the app builds a `FormData` body, POSTs it to the backend, shows a loading state, and renders the returned mask and overlay images along with the coverage percentage, object count, largest region size, processing time, model name, and per-class pixel breakdown. The mask can be downloaded as a PNG.
 
-One thing worth knowing: the trained models classify each pixel as plastic or background only. They don't distinguish bottle from wrapper from polythene. The per-category breakdown shown elsewhere in the dashboard is still illustrative sample data, that requires a multi-class model that doesn't exist yet.
+Because the backend runs on a Render instance that sleeps when idle, the first request after a quiet period can take up to a minute. The frontend handles this: the request timeout is 120 seconds, a failure consistent with a cold start (no response, timeout, or a 502/503/504 from Render's proxy) triggers exactly one automatic retry, and the loading message tells the user the server is waking up. Permanent errors (unsupported file, oversized image, server error) surface the backend's own human-readable message directly in the UI.
 
-`src/services/api.js` is deliberately the only frontend file that knows whether data is mocked or real. Every component asks it for data and renders whatever comes back.
+## Backend
 
-## Future Roadmap
+A FastAPI service (see `backend/README.md` for full detail). At startup it loads the model selected by `PLASTICNET_ACTIVE_MODEL` (default `fastscnn`), moves it to GPU if available, and runs one dummy forward pass so the first real upload isn't the slow one. Uploads are validated (type, size, decodability), resized to the training resolution of 720×1280, normalised, and passed through the network. Logits are upsampled back to the original image resolution before the argmax, the binary mask is analysed with connected-component labelling for region statistics, and colour mask and transparent overlay PNGs are written to `/outputs`, which is served statically and cleaned hourly.
 
-- Deploy the FastAPI backend somewhere it stays running (GitHub Pages can't host it, it's static only) and point the live site at it
-- Train a multi-class model for real per-category breakdown (bottle, cap, wrapper, polythene, shoe, foam), the current models only do binary plastic/background
-- A detection model, for individual object counting rather than connected-region counting
-- Add a real database for reports, users and detection history
-- Real time report updates instead of the current per session mock store
-- Live analytics fed by actual detections rather than sample data
-- A dedicated GIS monitoring view with a pollution heatmap
-- A fuller complaint management workflow for the authority team, beyond the current status control
-- Authority actions like assigning a report to a field team or attaching cleanup photos
+Four trained binary segmentation checkpoints ship in the repository and are swappable with a single config value: Fast-SCNN (default, 4.7 MB), ENet (1.65 MB), BiSeNetV2 (20 MB), and MobileNetV2Seg (53.7 MB). All four classify each pixel as plastic or background.
+
+## Technology Stack
+
+**Frontend:** React 18, Vite, Tailwind CSS, React Router, Recharts, Leaflet + OpenStreetMap, axios, lucide-react.
+**Backend:** Python 3, FastAPI, Uvicorn, PyTorch, torchvision, Pillow, NumPy, SciPy.
+**Models:** Fast-SCNN, BiSeNetV2, ENet, MobileNetV2Seg — binary plastic/background semantic segmentation.
+**Annotation:** Roboflow, COCO instance segmentation format.
+**Hosting:** GitHub Pages (frontend), Render (backend), GitHub Actions (CI/CD).
 
 ## Dataset
 
-The model is trained on a dataset built specifically for this project, not a general purpose plastic dataset pulled from somewhere else.
+The models are trained on a dataset built specifically for this project: 307 UAV and shoreline survey images of Dal Lake, Srinagar, carrying 1,760 polygon annotations across six plastic waste classes (bottle, cap, wrapper, polythene, shoe, foam), annotated in Roboflow and stored in COCO instance segmentation format. The deployed checkpoint generation is trained for the binary plastic-vs-background task; the six-class annotations support future multi-class training.
 
-- 307 images
-- 1,760 polygon annotations
-- 6 plastic waste classes: bottle, cap, wrapper, polythene, shoe, foam
-- Annotated in Roboflow
-- Stored in COCO instance segmentation format
+## Segmentation Pipeline
 
-It was collected and annotated specifically for research and model training, with the pilot site currently centred on Dal Lake, Srinagar.
+1. **Upload validation** — content type and extension checked against JPG/PNG/WEBP; empty and oversized (>15 MB) files rejected before decoding; the image is fully decoded to catch truncated files, converted to RGB, and rejected if smaller than 32×32.
+2. **Preprocessing** — bilinear resize to 720×1280, scale to [0,1], ImageNet mean/std normalisation, converted to a (1, 3, H, W) float32 tensor.
+3. **Inference** — a single forward pass through the cached model under `torch.no_grad()`.
+4. **Postprocessing** — logits are bilinearly upsampled to the original resolution *before* the argmax so interpolation stays meaningful; pixel counts, coverage percentage, and per-class breakdown are computed; connected-component labelling of the plastic mask yields the region count and largest region size.
+5. **Rendering** — a colour mask PNG and a transparent overlay PNG (plastic regions blended at 45% over the original) are written to `/outputs` and their URLs returned.
 
-## Installation
+`objectsFound` counts distinct contiguous plastic regions, not individually classified objects — these are semantic segmentation models, not instance detectors.
+
+## API Endpoints
+
+| Method | Path | Purpose |
+|---|---|---|
+| POST | `/api/segmentation/run` | Multipart upload (field `file`), returns the full prediction JSON |
+| GET | `/api/segmentation/models` | Lists registered models and which is active |
+| GET | `/api/health` | `{"status": "ok", "activeModel": "...", "modelLoaded": true}` |
+| GET | `/outputs/{name}.png` | Generated mask and overlay images (retained ~1 hour) |
+
+A successful prediction returns `jobId`, `status`, `filename`, `model`, `coveragePercent`, `plasticPixels`, `backgroundPixels`, `totalPixels`, `objectsFound`, `largestRegionPixels`, `processingTime`, `imageWidth`, `imageHeight`, `maskUrl`, `overlayUrl`, a per-class `classes` array, and an explanatory `note`. Errors use FastAPI's native shape, `{"detail": "human readable message"}`, with status 400 (bad upload), 413 (too large), 422 (malformed request), 503 (model unavailable), or 500.
+
+## Environment Variables
+
+**Frontend (build time, see `.env.example`):**
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `VITE_API_BASE_URL` | `https://plasticnet-backend.onrender.com/api` | Backend API base URL, must end in `/api` |
+
+**Backend (runtime):**
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `PLASTICNET_ACTIVE_MODEL` | `fastscnn` | Which registered model to serve (`fastscnn`, `mobilenet`, `bisenet`, `enet`) |
+| `PLASTICNET_CORS_ORIGINS` | localhost + GitHub Pages origin | Comma-separated list of allowed origins |
+| `PLASTICNET_MAX_UPLOAD_MB` | `15` | Upload size limit |
+| `PLASTICNET_OUTPUT_RETENTION_SECONDS` | `3600` | How long generated PNGs are kept |
+
+## Local Development
+
+Frontend:
 
 ```bash
 git clone https://github.com/sitanshusingh01/plasticnet.git
@@ -139,7 +150,19 @@ npm install
 npm run dev
 ```
 
-Runs at `http://localhost:5173`. The authority login accepts any email and password, there's no real authentication behind it yet.
+Runs at `http://localhost:5173` and talks to the deployed Render backend by default. To point it at a local backend instead, create a `.env` file with `VITE_API_BASE_URL=http://localhost:8000/api`.
+
+Backend:
+
+```bash
+cd backend
+python3 -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+uvicorn app:app --host 0.0.0.0 --port 8000
+```
+
+Health check at `http://localhost:8000/api/health`, interactive docs at `http://localhost:8000/docs`. The authority login accepts any email and password; there is no real authentication yet.
 
 Production build:
 
@@ -148,13 +171,51 @@ npm run build
 npm run preview
 ```
 
-## Deployment
+## Production Deployment
 
-The project is deployed with GitHub Pages. Every push to `main` triggers `.github/workflows/deploy.yml`, which builds the app and publishes it automatically. There's no manual deploy step.
+### GitHub Pages
 
-## Contributing
+Every push to `main` triggers `.github/workflows/deploy.yml`, which installs dependencies with `npm ci`, builds the app, and publishes `dist/` to GitHub Pages. `vite.config.js` sets `base: '/plasticnet/'` to match the repository path, and `HashRouter` keeps deep links working on static hosting. No manual step is involved.
 
-This is currently a small research project maintained alongside separate model training work. If you'd like to contribute, open an issue describing the change first, particularly for anything touching the service layer or the mock data shape, since the backend integration plan depends on that structure staying consistent.
+### Render
+
+The backend runs as a Render web service from the `backend/` directory of this repository. The service installs `requirements.txt`, then starts Uvicorn bound to Render's assigned port:
+
+```bash
+uvicorn app:app --host 0.0.0.0 --port $PORT
+```
+
+The trained weights are tracked in git, so a fresh deploy has everything it needs. Give the service at least 1–2 GB of RAM; PyTorch's base footprint plus a loaded model is significant. On plans that sleep when idle, the first request after a quiet period pays the cold-start cost (container boot, model load, warmup) — the frontend is built to absorb this with a long timeout and one automatic retry.
+
+If the frontend is ever served from a new origin, add it to `PLASTICNET_CORS_ORIGINS` on the Render service.
+
+## Troubleshooting
+
+**The first analysis takes a long time or seems stuck.** The Render instance was asleep. The frontend waits up to two minutes and retries once automatically; the run completes as soon as the server is warm. Subsequent runs take around a second.
+
+**"Could not reach the AI backend."** Check `https://plasticnet-backend.onrender.com/api/health` in a browser. If it returns `{"status": "ok", ...}` the backend is fine and the problem is local connectivity; if it doesn't load, check the Render dashboard for the service state.
+
+**Mask or overlay image fails to load a while after a run.** Generated PNGs are retained for about an hour and then cleaned up. Run the analysis again.
+
+**Browser console shows a CORS error.** The frontend origin isn't in the backend's allowed list. Add it via `PLASTICNET_CORS_ORIGINS` on Render and redeploy.
+
+**"Unsupported file type" on upload.** Only JPG, PNG and WEBP images are accepted, up to 15 MB.
+
+**Local `npm run dev` can't reach a local backend.** Confirm the backend is running on port 8000 and your `.env` contains `VITE_API_BASE_URL=http://localhost:8000/api`, then restart the dev server — Vite reads env files at startup.
+
+## Future Scope
+
+- Multi-class model training for a real per-category breakdown (bottle, cap, wrapper, polythene, shoe, foam); the current checkpoints are binary
+- A detection model for individual object counting; the Detection page currently shows illustrative output until one exists
+- A database for reports, users and detection history, replacing the per-session report store
+- Live dashboard analytics fed by stored detections rather than sample data
+- Real authentication for the authority dashboard
+- A GIS monitoring view with a pollution density heatmap
+- Authority workflow actions: assigning reports to field teams, attaching cleanup photos
+
+## Contribution
+
+Open an issue describing the change before sending a pull request, particularly for anything touching `src/services/api.js` or the backend response schema — the frontend renders whatever the API returns, so the contract between them is the one thing that must stay consistent.
 
 ## License
 
