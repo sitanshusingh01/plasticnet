@@ -17,6 +17,12 @@ logger = logging.getLogger("plasticnet.model_loader")
 _lock = threading.Lock()
 _cache: dict[str, dict] = {}
 
+# Backs up the OMP_NUM_THREADS/MKL_NUM_THREADS env vars set in config.py
+# (which only take effect if they're set before the native BLAS libraries
+# initialize). This call is the runtime equivalent and is safe to make
+# again even if the env vars already applied; it's cheap and idempotent.
+torch.set_num_threads(1)
+
 
 def _resolve_device() -> torch.device:
     if torch.cuda.is_available():

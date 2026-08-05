@@ -22,6 +22,23 @@ CLASS_NAMES below, and backend/README.md, for the full explanation.
 import os
 from pathlib import Path
 
+# Must be set before torch (or anything that pulls in numpy's BLAS backend)
+# is imported anywhere in the process: both libraries size their internal
+# thread pools from these at native-library init time, and each thread
+# carries its own working buffers. On a memory-constrained instance (Render
+# free/starter tier is 512MB) the default pool, sized to all visible CPU
+# cores, is enough overhead by itself to tip a single inference request
+# into an OOM kill. Pinning to 1 thread trades a little CPU latency for a
+# meaningfully smaller and more predictable memory footprint; this is a
+# single-worker, single-model service, so there is no concurrent inference
+# to parallelise across threads anyway. config.py is the first project
+# module app.py imports, so this runs before services.model_loader (or
+# anything else) has a chance to import torch/numpy/scipy.
+os.environ.setdefault("OMP_NUM_THREADS", "1")
+os.environ.setdefault("MKL_NUM_THREADS", "1")
+os.environ.setdefault("OPENBLAS_NUM_THREADS", "1")
+os.environ.setdefault("NUMEXPR_NUM_THREADS", "1")
+
 BACKEND_DIR = Path(__file__).resolve().parent
 WEIGHTS_DIR = BACKEND_DIR / "weights"
 OUTPUTS_DIR = BACKEND_DIR / "outputs"

@@ -2,6 +2,7 @@
 end: validate -> preprocess -> infer -> postprocess -> save outputs ->
 build the response the frontend expects."""
 
+import gc
 import logging
 import time
 
@@ -28,7 +29,12 @@ def run_segmentation(raw_bytes: bytes, filename: str) -> dict:
 
     tensor = preprocess(image).to(device)
 
-    with torch.no_grad():
+    # inference_mode is a stricter, slightly leaner version of no_grad: it
+    # skips autograd's version-counter bookkeeping entirely rather than
+    # just not recording it, which matters here because this process runs
+    # on a memory-constrained instance (see config.py's thread-pinning
+    # comment) and every avoidable allocation counts.
+    with torch.inference_mode():
         output = model(tensor)
         logits = output[0] if isinstance(output, (tuple, list)) else output
 
@@ -37,6 +43,15 @@ def run_segmentation(raw_bytes: bytes, filename: str) -> dict:
 
     job_id = new_job_id()
     urls = save_outputs(job_id, image, mask)
+
+    # The input tensor and raw logits are the largest short-lived
+    # allocations in this request (full-resolution upsampled logits in
+    # particular). Drop references and reclaim them now rather than
+    # waiting for Python's normal GC cadence, so peak resident memory
+    # doesn't carry over into the next request on this single-process
+    # service.
+    del tensor, output, logits, mask
+    gc.collect()
 
     elapsed = time.perf_counter() - start
 
