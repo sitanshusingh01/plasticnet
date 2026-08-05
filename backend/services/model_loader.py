@@ -4,6 +4,8 @@ per request; get_model() returns the same object every call after the
 first.
 """
 
+import ctypes
+import gc
 import importlib
 import logging
 import threading
@@ -22,6 +24,44 @@ _cache: dict[str, dict] = {}
 # initialize). This call is the runtime equivalent and is safe to make
 # again even if the env vars already applied; it's cheap and idempotent.
 torch.set_num_threads(1)
+torch.set_num_interop_threads(1)
+
+try:
+    _libc = ctypes.CDLL("libc.so.6")
+except OSError:
+    # Not glibc/Linux (e.g. local macOS dev) — release_memory() below
+    # becomes a plain gc.collect(), which is harmless everywhere.
+    _libc = None
+
+
+def release_memory() -> None:
+    """Reclaims memory Python/torch have already freed internally but the
+    C allocator is still holding onto.
+
+    Measured on this service: a single forward pass at TRAIN_RESOLUTION
+    (see preprocess.py) allocates roughly 150-250MB of intermediate
+    activations depending on which registry model is active (this is
+    inherent to running a CNN forward pass at that resolution, not a
+    leak — confirmed by profiling get_model() before vs. after one
+    forward pass in isolation). Python's refcounting and torch free that
+    memory back to the process's C allocator as soon as the tensors go
+    out of scope, but glibc's malloc does not hand freed heap pages back
+    to the OS by default, so the process's resident set stays elevated
+    indefinitely, request after request, even though nothing is actually
+    using that memory anymore. On a hard-capped instance (Render's free
+    tier is 512MB total) that stuck memory is the difference between the
+    next request fitting or getting OOM-killed.
+    malloc_trim(0) asks glibc to return whatever it can. It's a no-op
+    everywhere except Linux/glibc, which is exactly where it's needed:
+    Render's containers run glibc; this dev machine (macOS) does not,
+    which is also why this effect isn't directly visible when profiling
+    locally."""
+    gc.collect()
+    if _libc is not None:
+        try:
+            _libc.malloc_trim(0)
+        except Exception:
+            pass
 
 
 def _resolve_device() -> torch.device:
@@ -101,14 +141,22 @@ def get_model(model_key: str | None = None) -> dict:
 
 def preload_active_model() -> None:
     """Called once at FastAPI startup so the first real request isn't the
-    one paying the model-load cost. Also runs one dummy forward pass: the
-    first inference on a freshly loaded model is measurably slower than
-    subsequent ones (CPU kernel/thread-pool warmup), so pay that cost here
-    too rather than on whoever's upload happens to arrive first."""
-    import torch as _torch
-    from config import TRAIN_RESOLUTION
+    one paying the model-build/weight-load cost (get_model() below,
+    measured at ~10-15MB and well under a second — cheap, always worth
+    doing eagerly).
 
-    loaded = get_model(ACTIVE_MODEL)
-    dummy = _torch.zeros(1, 3, *TRAIN_RESOLUTION, device=loaded["device"])
-    with _torch.no_grad():
-        loaded["model"](dummy)
+    Deliberately does NOT also run a dummy warmup forward pass anymore.
+    That used to trade a slightly slower first real request for
+    consistent latency on every request. Measured cost of that trade-off
+    on this service: one forward pass at TRAIN_RESOLUTION leaves the
+    process's resident memory permanently ~150-250MB higher (see
+    release_memory()'s docstring for why), so a warmup pass at startup
+    means the service starts every deployment already most of the way to
+    Render's 512MB free-tier ceiling before a single real request has
+    arrived. Skipping it keeps the resting baseline low (~200-230MB
+    measured) so the first real request's own forward pass has enough
+    headroom to actually complete instead of getting OOM-killed. The
+    first request being a little slower is the explicitly accepted
+    trade-off for that headroom."""
+    get_model(ACTIVE_MODEL)
+    release_memory()

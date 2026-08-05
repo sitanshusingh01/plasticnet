@@ -2,14 +2,13 @@
 end: validate -> preprocess -> infer -> postprocess -> save outputs ->
 build the response the frontend expects."""
 
-import gc
 import logging
 import time
 
 import torch
 
 from config import MODEL_REGISTRY, ACTIVE_MODEL
-from services.model_loader import get_model
+from services.model_loader import get_model, release_memory
 from services.preprocess import load_and_validate_image, preprocess
 from services.postprocess import logits_to_mask, compute_statistics
 from services.image_utils import save_outputs, new_job_id, class_hex
@@ -28,30 +27,36 @@ def run_segmentation(raw_bytes: bytes, filename: str) -> dict:
     device = loaded["device"]
 
     tensor = preprocess(image).to(device)
+    # Pre-bound to None so the `del` in `finally` below is always valid,
+    # including when an exception is raised before these get their real
+    # value (e.g. the forward pass itself failing).
+    output = logits = mask = None
 
-    # inference_mode is a stricter, slightly leaner version of no_grad: it
-    # skips autograd's version-counter bookkeeping entirely rather than
-    # just not recording it, which matters here because this process runs
-    # on a memory-constrained instance (see config.py's thread-pinning
-    # comment) and every avoidable allocation counts.
-    with torch.inference_mode():
-        output = model(tensor)
-        logits = output[0] if isinstance(output, (tuple, list)) else output
+    try:
+        # inference_mode is a stricter, slightly leaner version of no_grad:
+        # it skips autograd's version-counter bookkeeping entirely rather
+        # than just not recording it, which matters here because this
+        # process runs on a memory-constrained instance (see config.py's
+        # thread-pinning comment) and every avoidable allocation counts.
+        with torch.inference_mode():
+            output = model(tensor)
+            logits = output[0] if isinstance(output, (tuple, list)) else output
 
-    mask = logits_to_mask(logits, original_size)
-    stats = compute_statistics(mask)
+        mask = logits_to_mask(logits, original_size)
+        stats = compute_statistics(mask)
 
-    job_id = new_job_id()
-    urls = save_outputs(job_id, image, mask)
-
-    # The input tensor and raw logits are the largest short-lived
-    # allocations in this request (full-resolution upsampled logits in
-    # particular). Drop references and reclaim them now rather than
-    # waiting for Python's normal GC cadence, so peak resident memory
-    # doesn't carry over into the next request on this single-process
-    # service.
-    del tensor, output, logits, mask
-    gc.collect()
+        job_id = new_job_id()
+        urls = save_outputs(job_id, image, mask)
+    finally:
+        # Runs on the success path AND on any exception raised above (a
+        # failed request still allocated the input tensor and whatever
+        # got as far as the forward pass). release_memory() is the
+        # malloc_trim-backed cleanup in model_loader.py: on this
+        # memory-constrained instance, a request that fails without
+        # releasing its memory would leave the next request — success or
+        # not — with even less headroom than it had.
+        del tensor, output, logits, mask, image
+        release_memory()
 
     elapsed = time.perf_counter() - start
 
