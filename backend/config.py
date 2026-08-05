@@ -25,10 +25,9 @@ from pathlib import Path
 BACKEND_DIR = Path(__file__).resolve().parent
 WEIGHTS_DIR = BACKEND_DIR / "weights"
 OUTPUTS_DIR = BACKEND_DIR / "outputs"
-TEMP_DIR = BACKEND_DIR / "temp"
 LOGS_DIR = BACKEND_DIR / "logs"
 
-for d in (WEIGHTS_DIR, OUTPUTS_DIR, TEMP_DIR, LOGS_DIR):
+for d in (WEIGHTS_DIR, OUTPUTS_DIR, LOGS_DIR):
     d.mkdir(parents=True, exist_ok=True)
 
 # Binary segmentation contract, true for every model below. If a future

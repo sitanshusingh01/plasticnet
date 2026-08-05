@@ -234,12 +234,24 @@ function isColdStartError(error) {
 function toApiError(error) {
   if (error.response) {
     const status = error.response.status
-    const detail =
-      typeof error.response.data?.detail === 'string' ? error.response.data.detail : null
+    const rawDetail = error.response.data?.detail
+    // FastAPI HTTPException carries a string detail; FastAPI validation
+    // errors (422) carry an array of {loc, msg, type} objects instead.
+    let detail = null
+    if (typeof rawDetail === 'string') {
+      detail = rawDetail
+    } else if (Array.isArray(rawDetail) && rawDetail.length) {
+      detail = rawDetail
+        .map((item) => (typeof item?.msg === 'string' ? item.msg : null))
+        .filter(Boolean)
+        .join('; ') || null
+    }
     const fallbackByStatus = {
       400: 'The uploaded file could not be processed. Use a JPG, PNG or WEBP image.',
       404: 'The segmentation endpoint was not found on the backend. The backend deployment may be out of date.',
       413: 'The image is too large for the backend to accept. Upload a smaller image.',
+      422: 'The upload was not accepted by the backend. Choose an image file and try again.',
+      429: 'Too many requests in a short time. Wait a moment and try again.',
       500: 'The AI backend hit an unexpected error processing this image. Try again or use a different image.',
       503: 'The AI backend is temporarily unavailable. Try again in a minute.'
     }
