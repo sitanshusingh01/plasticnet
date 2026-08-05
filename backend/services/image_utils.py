@@ -27,18 +27,38 @@ def colorize_mask(mask: np.ndarray) -> Image.Image:
 
 def build_overlay(original: Image.Image, mask: np.ndarray, alpha: float = 0.45) -> Image.Image:
     """Alpha-blends the colour mask onto the original image, background
-    class stays fully transparent so the source photo shows through
-    everywhere nothing was detected."""
-    original_rgba = original.convert("RGBA")
-    color_layer = np.zeros((*mask.shape, 4), dtype=np.uint8)
+    class pixels are left as the original photo.
+
+    The previous implementation built this by allocating a full-resolution
+    RGBA copy of the original, a second full-resolution RGBA colour layer,
+    and then handed both to PIL's alpha_composite for a third full-
+    resolution RGBA result — three H*W*4-byte buffers alive at once. For a
+    real phone photo (12MP+) that's 100MB+ just for this step, dwarfing
+    everything else in the request on a memory-constrained instance.
+
+    Compositing a semi-transparent layer over a fully OPAQUE base always
+    yields alpha=255 everywhere (Porter-Duff "over": out_a = src_a +
+    dst_a*(1-src_a), and dst_a=1 here since the original photo has no
+    transparency) — confirmed against Pillow's actual alpha_composite
+    output (identical to within +/-1 per channel from float/fixed-point
+    rounding, i.e. imperceptible, and only in this cosmetic visualization
+    image; it does not touch the mask or any reported statistic). That
+    means the result can be built directly into a single output buffer:
+    start from the original photo, then blend the class colour in-place
+    only at the pixels that were actually classified as that class, rather
+    than allocating separate full-frame layers unconditionally."""
+    rgb = np.asarray(original.convert("RGB"))
+    out = np.empty((*mask.shape, 4), dtype=np.uint8)
+    out[..., :3] = rgb
+    out[..., 3] = 255
     for idx, name in enumerate(CLASS_NAMES):
         if name == "Background":
-            continue  # leave background pixels alpha=0
-        r, g, b = CLASS_COLORS[name]
+            continue
+        color = np.array(CLASS_COLORS[name], dtype=np.float32)
         region = mask == idx
-        color_layer[region] = (r, g, b, int(255 * alpha))
-    overlay_layer = Image.fromarray(color_layer, mode="RGBA")
-    return Image.alpha_composite(original_rgba, overlay_layer)
+        selected = rgb[region].astype(np.float32)  # only the detected pixels, not the whole frame
+        out[..., :3][region] = np.round(selected * (1 - alpha) + color * alpha).astype(np.uint8)
+    return Image.fromarray(out, mode="RGBA")
 
 
 def save_outputs(job_id: str, original: Image.Image, mask: np.ndarray) -> dict[str, str]:

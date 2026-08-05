@@ -17,7 +17,7 @@ from fastapi.staticfiles import StaticFiles
 
 from config import ACTIVE_MODEL, OUTPUTS_DIR, LOGS_DIR
 from settings import CORS_ORIGINS, LOG_FILE
-from services.model_loader import preload_active_model
+from services.model_loader import preload_active_model, is_loaded
 from services.image_utils import cleanup_expired_outputs
 from routes.predict import router as predict_router
 
@@ -63,11 +63,10 @@ app.include_router(predict_router, prefix="/api")
 
 @app.get("/api/health")
 def health():
-    from services.model_loader import _cache
     return {
         "status": "ok",
         "activeModel": ACTIVE_MODEL,
-        "modelLoaded": ACTIVE_MODEL in _cache,
+        "modelLoaded": is_loaded(ACTIVE_MODEL),
     }
 
 

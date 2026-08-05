@@ -1,6 +1,13 @@
 fastapi>=0.110
 uvicorn[standard]>=0.29
 python-multipart>=0.0.9
+onnxruntime>=1.18
+# torch/torchvision are a fallback only: the active model (fastscnn) is
+# served through onnxruntime above (see services/model_loader.py,
+# services/segmentation_service.py). They're still required so switching
+# PLASTICNET_ACTIVE_MODEL to a registry entry without an ONNX export
+# (enet/bisenet/mobilenet — see backend/scripts/export_onnx.py to add
+# one) keeps working via the torch path.
 torch>=2.1
 torchvision>=0.16
 Pillow>=10.0

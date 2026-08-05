@@ -1,0 +1,5 @@
+# Only needed to run scripts/export_onnx.py (an offline, one-time
+# conversion step) — NOT part of the deployed service's requirements.txt.
+# pip install -r scripts/requirements-export.txt
+onnx>=1.16
+onnxscript>=0.1
