@@ -5,7 +5,7 @@ import PublicHeader from '../components/layout/PublicHeader.jsx'
 import MediaUploadCard from '../components/common/MediaUploadCard.jsx'
 import LocationMap from '../components/common/LocationMap.jsx'
 import MetricCard from '../components/common/MetricCard.jsx'
-import { uploadImage, runSegmentation, submitCitizenReport, reverseGeocode } from '../services/api.js'
+import { runSegmentation, submitCitizenReport, reverseGeocode } from '../services/api.js'
 import { getCurrentPosition, getDeviceTimezone } from '../utils/geolocation.js'
 
 const DEFAULT_CENTER = { latitude: 34.0837, longitude: 74.7973 }
@@ -21,6 +21,8 @@ export default function CitizenReport() {
   const [previewUrl, setPreviewUrl] = useState(null)
   const [mediaType, setMediaType] = useState(null)
   const [analysisStatus, setAnalysisStatus] = useState('idle')
+  const [analysisNote, setAnalysisNote] = useState('')
+  const [analysisError, setAnalysisError] = useState('')
   const [analysis, setAnalysis] = useState(null)
 
   const [locationStatus, setLocationStatus] = useState('idle')
@@ -49,23 +51,35 @@ export default function CitizenReport() {
     setPreviewUrl(URL.createObjectURL(selected))
     setAnalysis(null)
     setAnalysisStatus('idle')
+    setAnalysisNote('')
+    setAnalysisError('')
 
     if (type === 'image') {
       setAnalysisStatus('running')
       analyzedFileRef.current = selected
-      await uploadImage(selected)
-      const job = await runSegmentation(selected)
-      if (analyzedFileRef.current !== selected) return
-      // Same pattern as Segmentation.jsx: use the real prediction when the
-      // backend provides it, fall back to the existing mock generator when
-      // it doesn't (USE_MOCK=true today).
-      const coveragePercent = job.coveragePercent ?? Number((Math.random() * 8 + 3).toFixed(1))
-      setAnalysis({
-        coveragePercent,
-        objectsFound: job.objectsFound ?? Math.floor(Math.random() * 16 + 6),
-        severity: severityFromCoverage(coveragePercent)
-      })
-      setAnalysisStatus('complete')
+      try {
+        // Real prediction from the deployed backend, no generated values.
+        const job = await runSegmentation(selected, {
+          onRetry: () => setAnalysisNote('The AI server is waking up, retrying automatically. This can take up to a minute.')
+        })
+        if (analyzedFileRef.current !== selected) return
+        setAnalysis({
+          coveragePercent: job.coveragePercent,
+          objectsFound: job.objectsFound,
+          severity: severityFromCoverage(job.coveragePercent),
+          maskUrl: job.maskUrl,
+          overlayUrl: job.overlayUrl,
+          model: job.model,
+          jobId: job.jobId
+        })
+        setAnalysisStatus('complete')
+        setAnalysisNote('')
+      } catch (error) {
+        if (analyzedFileRef.current !== selected) return
+        setAnalysisStatus('error')
+        setAnalysisNote('')
+        setAnalysisError(`${error.message} You can still submit the report, it will be analysed later.`)
+      }
     }
   }
 
@@ -75,6 +89,8 @@ export default function CitizenReport() {
     setPreviewUrl(null)
     setAnalysis(null)
     setAnalysisStatus('idle')
+    setAnalysisNote('')
+    setAnalysisError('')
     analyzedFileRef.current = null
   }
 
@@ -134,9 +150,11 @@ export default function CitizenReport() {
       locationName: locationName || null,
       timezone: getDeviceTimezone(),
       aiPrediction: analysis
-        ? { coveragePercent: analysis.coveragePercent, severity: analysis.severity, objectsFound: analysis.objectsFound }
-        : { status: 'pending_backend' },
-      segmentationResult: { status: 'pending_backend', maskUrl: null },
+        ? { coveragePercent: analysis.coveragePercent, severity: analysis.severity, objectsFound: analysis.objectsFound, model: analysis.model, jobId: analysis.jobId }
+        : { status: 'unavailable' },
+      segmentationResult: analysis?.maskUrl
+        ? { status: 'complete', maskUrl: analysis.maskUrl, overlayUrl: analysis.overlayUrl }
+        : { status: 'unavailable', maskUrl: null },
       detectionResult: { status: 'pending_backend', boundingBoxes: [] },
       classificationResult: { status: 'pending_backend', categories: [] }
     })
@@ -211,8 +229,13 @@ export default function CitizenReport() {
 
           {mediaType === 'image' && analysisStatus === 'running' && (
             <p className="mt-3 flex items-center gap-2 text-sm text-ink-muted dark:text-night-ink-muted">
-              <PlayCircle size={15} className="animate-pulse" /> Analysing photo
+              <PlayCircle size={15} className="animate-pulse" />
+              {analysisNote || 'Analysing photo with the AI model. The first analysis after a quiet period can take up to a minute.'}
             </p>
+          )}
+
+          {mediaType === 'image' && analysisStatus === 'error' && analysisError && (
+            <p className="mt-3 text-sm text-warning-dark dark:text-warning">{analysisError}</p>
           )}
 
           {analysis && (
@@ -228,7 +251,7 @@ export default function CitizenReport() {
           )}
         </div>
 
-        {file && (mediaType === 'video' || analysisStatus === 'complete') && (
+        {file && (mediaType === 'video' || analysisStatus === 'complete' || analysisStatus === 'error') && (
           <div className="mt-8">
             <p className="mb-2 text-sm font-medium text-ink dark:text-night-ink">2. Confirm your location</p>
 
