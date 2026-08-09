@@ -1,0 +1,30 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "name": "Dal Lake (PLACEHOLDER BOUNDARY, NOT SURVEYED)",
+        "source": "Approximated from published bounding coordinates (34.083-34.15N, 74.833-74.90E, water quality literature) and known basin layout (Gagribal, Lokut Dal, Bod Dal, Nagin). This is a stand-in for pipeline testing only, it is not a traced OSM/survey boundary. Replace this file's single feature with the real boundary before generating production zones."
+      },
+      "geometry": {
+        "type": "Polygon",
+        "coordinates": [[
+          [74.845, 34.085],
+          [74.865, 34.082],
+          [74.885, 34.090],
+          [74.892, 34.105],
+          [74.890, 34.125],
+          [74.884, 34.138],
+          [74.865, 34.148],
+          [74.850, 34.145],
+          [74.840, 34.132],
+          [74.833, 34.118],
+          [74.838, 34.100],
+          [74.842, 34.090],
+          [74.845, 34.085]
+        ]]
+      }
+    }
+  ]
+}

@@ -1,5 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
-import { BadgeCheck, Film, Map, TrendingUp, Video } from 'lucide-react'
+import { BadgeCheck, Film, TrendingUp, Video } from 'lucide-react'
 import DashboardLayout from '../layouts/DashboardLayout.jsx'
 import Home from '../pages/Home.jsx'
 import Login from '../pages/Login.jsx'
@@ -10,6 +10,7 @@ import Segmentation from '../pages/Segmentation.jsx'
 import Detection from '../pages/Detection.jsx'
 import Classification from '../pages/Classification.jsx'
 import Reports from '../pages/Reports.jsx'
+import ZoneMapping from '../pages/ZoneMapping.jsx'
 import ComingSoon from '../pages/ComingSoon.jsx'
 import ProtectedRoute from './ProtectedRoute.jsx'
 
@@ -73,21 +74,7 @@ export default function AppRoutes() {
               />
             }
           />
-          <Route
-            path="/gis-mapping"
-            element={
-              <ComingSoon
-                title="GIS Mapping"
-                description="Dal Lake GIS monitoring, zone by zone"
-                icon={Map}
-                points={[
-                  'Plot detections on an interactive map of Dal Lake, from Northern Shore to Zero Bridge',
-                  'Toggle a pollution density heatmap across sampling locations and cleanup zones',
-                  'Filter markers by plastic type, survey date and the Floating Gardens sector'
-                ]}
-              />
-            }
-          />
+          <Route path="/gis-mapping" element={<ZoneMapping />} />
           <Route
             path="/validation"
             element={

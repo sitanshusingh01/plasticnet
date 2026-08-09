@@ -157,6 +157,10 @@ export async function getCitizenReports() {
 // Builds the full report record client side today. Once report persistence
 // exists on the backend, the server assigns reportId and filename instead
 // and this becomes a straightforward POST with the media file attached.
+// Note: ...report is spread last, so a caller-supplied report.reportId
+// overrides the generated one below. CitizenReport.jsx relies on this to
+// use the same id it already sent to /api/zones/assign, so a report and
+// its zone log entry share one reference.
 export async function submitCitizenReport(report) {
   if (USE_MOCK_DASHBOARD) {
     reportSequence += 1
@@ -181,6 +185,13 @@ export async function submitCitizenReport(report) {
 // both read from the same store, so a resolved report shows up as
 // resolved everywhere on the very next fetch, no separate sync step.
 export async function updateReportStatus(reportId, reportStatus) {
+  // Keeps the zone's pending/resolved counters accurate. Best effort and
+  // fire-and-forget: the zones backend only tracks pending vs resolved
+  // (not the frontend's five-stage status), and a report that was never
+  // zone-assigned (seed data, or submitted before Zone Mapping existed)
+  // is a documented no-op there, not an error worth surfacing here.
+  syncZoneReportStatus(reportId, reportStatus === 'resolved' ? 'resolved' : 'pending')
+
   if (USE_MOCK_DASHBOARD) {
     citizenReportStore = citizenReportStore.map((report) =>
       report.reportId === reportId ? { ...report, reportStatus } : report
@@ -344,4 +355,78 @@ export async function exportReport(format = 'pdf') {
   // POST /reports/export
   const { data } = await client.post('/reports/export', { format })
   return data
+}
+
+// ---------------------------------------------------------------------
+// Zone Mapping. Real backend only, same as segmentation, there is no
+// mock branch here: zone boundaries and risk come from
+// backend/data/dal_lake_zones.geojson and the zones database, not from
+// anything generated in the browser.
+// ---------------------------------------------------------------------
+
+// GeoJSON FeatureCollection, one feature per zone, with live stats and
+// risk already in each feature's properties. Render this directly, do
+// not recompute risk or geometry on the frontend.
+export async function getZonesGeoJSON() {
+  try {
+    const { data } = await client.get('/zones')
+    return data
+  } catch (error) {
+    throw toApiError(error)
+  }
+}
+
+export async function getZoneDetail(zoneId) {
+  try {
+    const { data } = await client.get(`/zones/${zoneId}`)
+    return data
+  } catch (error) {
+    throw toApiError(error)
+  }
+}
+
+export async function getZoneReports(zoneId) {
+  try {
+    const { data } = await client.get(`/zones/${zoneId}/reports`)
+    return data
+  } catch (error) {
+    throw toApiError(error)
+  }
+}
+
+// Point-in-polygon zone lookup, called once during citizen report
+// submission. Best effort by design: CitizenReport.jsx does not block a
+// submission on this failing, a point outside every zone or a
+// momentarily unavailable backend should not stop someone from reporting.
+export async function assignZone({ latitude, longitude, coveragePercent, severity, reportRef }) {
+  const { data } = await client.post('/zones/assign', {
+    latitude, longitude, coveragePercent, severity, reportRef
+  })
+  return data
+}
+
+// Authority override, stored with officer name, reason and a timestamp,
+// never edited after the fact, only appended to.
+export async function overrideZoneRisk(zoneId, { riskLevel, officerName, reason }) {
+  try {
+    const { data } = await client.patch(`/zones/${zoneId}/risk`, {
+      riskLevel, officerName, reason
+    })
+    return data
+  } catch (error) {
+    throw toApiError(error)
+  }
+}
+
+// Keeps a zone's pending/resolved counts accurate when a report's status
+// changes on the authority side. A no-op (synced: false) for a report
+// the zones backend never saw, that's expected for seed data and is not
+// an error.
+export async function syncZoneReportStatus(reportRef, status) {
+  try {
+    const { data } = await client.patch(`/zones/reports/${reportRef}/status`, { status })
+    return data
+  } catch {
+    return { synced: false }
+  }
 }

@@ -5,7 +5,7 @@ import PublicHeader from '../components/layout/PublicHeader.jsx'
 import MediaUploadCard from '../components/common/MediaUploadCard.jsx'
 import LocationMap from '../components/common/LocationMap.jsx'
 import MetricCard from '../components/common/MetricCard.jsx'
-import { runSegmentation, submitCitizenReport, reverseGeocode } from '../services/api.js'
+import { runSegmentation, submitCitizenReport, reverseGeocode, assignZone } from '../services/api.js'
 import { getCurrentPosition, getDeviceTimezone } from '../utils/geolocation.js'
 
 const DEFAULT_CENTER = { latitude: 34.0837, longitude: 74.7973 }
@@ -138,7 +138,31 @@ export default function CitizenReport() {
     event.preventDefault()
     if (!position) return
     setSubmitStatus('submitting')
+
+    // A stable id shared between the zone assignment call and the report
+    // itself, so the zones backend can link its report log entry back to
+    // this exact report later (status sync, zone report listings).
+    const reportId = `CR-${Date.now().toString(36).toUpperCase()}`
+
+    let zoneName = null
+    try {
+      const zone = await assignZone({
+        latitude: position.latitude,
+        longitude: position.longitude,
+        coveragePercent: analysis?.coveragePercent ?? null,
+        severity: analysis?.severity ?? null,
+        reportRef: reportId
+      })
+      zoneName = zone.zoneName
+    } catch {
+      // Best effort: a point outside every monitoring zone boundary, or
+      // the backend being briefly unavailable, should never block someone
+      // from submitting a report.
+    }
+
     const result = await submitCitizenReport({
+      reportId,
+      zone: zoneName,
       mediaType,
       mediaPreviewUrl: previewUrl,
       description: description || 'Plastic waste spotted, no additional notes provided',

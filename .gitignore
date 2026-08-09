@@ -12,3 +12,4 @@ backend/__pycache__
 backend/**/__pycache__
 backend/outputs/*.png
 backend/logs/*.log
+backend/data/*.db

@@ -41,7 +41,7 @@ PlasticNet AI shortens that loop. Reporting takes minutes and requires no traini
 
 The frontend is fully static and deployed to GitHub Pages by GitHub Actions on every push to `main`. The backend is a persistent Python process on Render that loads the active model once at startup, runs a warmup pass, and then serves predictions. Cross-origin requests from the Pages origin are explicitly allowed by the backend's CORS configuration.
 
-Segmentation predictions are always real: the frontend displays only values returned by the backend and never fabricates coverage numbers, object counts, masks, or overlays. Dashboard analytics (trend charts, zone risk, alerts) are illustrative sample data until their backend endpoints exist; that boundary lives in exactly one file, `src/services/api.js`, and is clearly marked there.
+Segmentation predictions are always real: the frontend displays only values returned by the backend and never fabricates coverage numbers, object counts, masks, or overlays. Zone Mapping is real too: monitoring zone boundaries, point-in-polygon report assignment, and risk colouring all come from the backend's own database, not from anything computed in the browser. Other dashboard analytics (trend charts, alerts) are illustrative sample data until their backend endpoints exist; that boundary lives in exactly one file, `src/services/api.js`, and is clearly marked there.
 
 ## Folder Structure
 
@@ -51,7 +51,7 @@ src/
                 the Leaflet location map
   pages/        One file per route: home, login, citizen report, community
                 reports, dashboard overview, segmentation, detection,
-                classification, reports queue
+                classification, reports queue, zone mapping
   layouts/      Wraps authenticated pages with the sidebar and navbar
   services/     api.js — the single file that talks to the backend and the
                 only file allowed to import sample data
@@ -64,14 +64,22 @@ src/
   routes/       Route definitions and the auth guard
 public/         Static assets served as-is
 backend/
-  app.py        FastAPI app: CORS, /outputs static mount, startup warmup
+  app.py        FastAPI app: CORS, /outputs static mount, startup warmup,
+                zone database init and GeoJSON load
   config.py     Model registry, ACTIVE_MODEL switch, class names/colours
   settings.py   Upload limits, CORS origins, output retention
   schemas.py    Pydantic response contracts
-  routes/       POST /segmentation/run, GET /segmentation/models
+  database.py   SQLAlchemy engine/session (SQLite by default)
+  db_models.py  Zone / ZoneReportLog / RiskOverride ORM models
+  routes/       POST /segmentation/run, GET /segmentation/models,
+                the six Zone Mapping endpoints
   services/     Model loading/caching, preprocess, inference orchestration,
-                postprocess, mask/overlay rendering, output cleanup
+                postprocess, mask/overlay rendering, output cleanup,
+                zone_service.py (point-in-polygon, risk scoring, stats)
   models/       The four segmentation architectures
+  scripts/      generate_zones.py (boundary -> zone polygons), export_onnx.py
+  data/         dal_lake_zones.geojson (zone geometry, single source of
+                truth), dal_lake_boundary.PLACEHOLDER.geojson
   weights/      Trained checkpoints (tracked in git, ~77 MB total)
 ```
 
@@ -92,8 +100,9 @@ Four trained binary segmentation checkpoints ship in the repository and are swap
 ## Technology Stack
 
 **Frontend:** React 18, Vite, Tailwind CSS, React Router, Recharts, Leaflet + OpenStreetMap, axios, lucide-react.
-**Backend:** Python 3, FastAPI, Uvicorn, PyTorch, torchvision, Pillow, NumPy, SciPy.
+**Backend:** Python 3, FastAPI, Uvicorn, PyTorch, torchvision, Pillow, NumPy, SciPy, Shapely, SQLAlchemy.
 **Models:** Fast-SCNN, BiSeNetV2, ENet, MobileNetV2Seg — binary plastic/background semantic segmentation.
+**Zone Mapping:** Shapely (point-in-polygon, geometry), SQLAlchemy + SQLite (zone stats and report history).
 **Annotation:** Roboflow, COCO instance segmentation format.
 **Hosting:** GitHub Pages (frontend), Render (backend), GitHub Actions (CI/CD).
 
@@ -111,6 +120,12 @@ The models are trained on a dataset built specifically for this project: 307 UAV
 
 `objectsFound` counts distinct contiguous plastic regions, not individually classified objects — these are semantic segmentation models, not instance detectors.
 
+## Zone Mapping
+
+Dal Lake is divided into monitoring zones (a GeoJSON boundary partitioned into ~28 polygons, see `backend/README.md` for how). Every citizen report is assigned to a zone automatically by its coordinates — a real point-in-polygon lookup, not a dropdown — and each zone tracks its own report count, average coverage, and a risk colour computed from that history. The frontend never calculates a colour or a coordinate; it renders exactly what `GET /api/zones` returns.
+
+**Current status**: the zone *boundaries* are a placeholder — grid-generated from published bounding coordinates and Dal Lake's known basin layout, not a traced survey boundary. The rest of the pipeline (database, point-in-polygon assignment, risk scoring, the map UI, authority overrides) is real and tested. See `backend/README.md`'s "Zone Mapping" section for the full detail, including why SQLite here doesn't survive a Render redeploy yet.
+
 ## API Endpoints
 
 | Method | Path | Purpose |
@@ -119,8 +134,14 @@ The models are trained on a dataset built specifically for this project: 307 UAV
 | GET | `/api/segmentation/models` | Lists registered models and which is active |
 | GET | `/api/health` | `{"status": "ok", "activeModel": "...", "modelLoaded": true}` |
 | GET | `/outputs/{name}.png` | Generated mask and overlay images (retained ~1 hour) |
+| GET | `/api/zones` | GeoJSON of every monitoring zone with live stats |
+| GET | `/api/zones/{zoneId}` | One zone's detail, including trend and latest report |
+| GET | `/api/zones/{zoneId}/reports` | Every report logged against that zone |
+| POST | `/api/zones/assign` | Point-in-polygon zone assignment for a new report |
+| PATCH | `/api/zones/{zoneId}/risk` | Authority manual risk override |
+| PATCH | `/api/zones/reports/{reportRef}/status` | Syncs a zone's pending/resolved counts |
 
-A successful prediction returns `jobId`, `status`, `filename`, `model`, `coveragePercent`, `plasticPixels`, `backgroundPixels`, `totalPixels`, `objectsFound`, `largestRegionPixels`, `processingTime`, `imageWidth`, `imageHeight`, `maskUrl`, `overlayUrl`, a per-class `classes` array, and an explanatory `note`. Errors use FastAPI's native shape, `{"detail": "human readable message"}`, with status 400 (bad upload), 413 (too large), 422 (malformed request), 503 (model unavailable), or 500.
+A successful prediction returns `jobId`, `status`, `filename`, `model`, `coveragePercent`, `plasticPixels`, `backgroundPixels`, `totalPixels`, `objectsFound`, `largestRegionPixels`, `processingTime`, `imageWidth`, `imageHeight`, `maskUrl`, `overlayUrl`, a per-class `classes` array, and an explanatory `note`. Errors use FastAPI's native shape, `{"detail": "human readable message"}`, with status 400 (bad upload), 413 (too large), 422 (malformed request), 503 (model unavailable), or 500. Zone Mapping endpoints follow the same error shape; see `backend/README.md` for their specific status codes.
 
 ## Environment Variables
 
@@ -138,6 +159,7 @@ A successful prediction returns `jobId`, `status`, `filename`, `model`, `coverag
 | `PLASTICNET_CORS_ORIGINS` | localhost + GitHub Pages origin | Comma-separated list of allowed origins |
 | `PLASTICNET_MAX_UPLOAD_MB` | `15` | Upload size limit |
 | `PLASTICNET_OUTPUT_RETENTION_SECONDS` | `3600` | How long generated PNGs are kept |
+| `PLASTICNET_DATABASE_URL` | `sqlite:///data/plasticnet.db` | Zone Mapping's database. Point this at a managed Postgres instance to survive Render redeploys |
 
 ## Local Development
 
@@ -207,10 +229,10 @@ If the frontend is ever served from a new origin, add it to `PLASTICNET_CORS_ORI
 
 - Multi-class model training for a real per-category breakdown (bottle, cap, wrapper, polythene, shoe, foam); the current checkpoints are binary
 - A detection model for individual object counting; the Detection page currently shows illustrative output until one exists
-- A database for reports, users and detection history, replacing the per-session report store
+- A managed Postgres database on Render, replacing SQLite for Zone Mapping (currently wiped on redeploy, see `backend/README.md`) and eventually the report store too
 - Live dashboard analytics fed by stored detections rather than sample data
 - Real authentication for the authority dashboard
-- A GIS monitoring view with a pollution density heatmap
+- The real, surveyed Dal Lake boundary in place of `data/dal_lake_boundary.PLACEHOLDER.geojson`; a pollution density heatmap layer on top of Zone Mapping
 - Authority workflow actions: assigning reports to field teams, attaching cleanup photos
 
 ## Contribution

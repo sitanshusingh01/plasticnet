@@ -135,6 +135,40 @@ Lists every registered model and which one is currently active. Useful for check
 
 `{"status": "ok", "activeModel": "fastscnn", "modelLoaded": true}`
 
+## Zone Mapping
+
+Divides Dal Lake into monitoring zones, assigns every citizen report to one automatically by coordinates, and tracks per-zone risk. This is a separate subsystem from segmentation: it has its own database, its own router, and touches segmentation nowhere.
+
+**Single source of truth**: `data/dal_lake_zones.geojson`. One `FeatureCollection`, one polygon per zone, each feature's `properties` carrying `zoneId`, `name`, `areaSqm`, `centroidLat`, `centroidLng`, `defaultRisk`. Nothing else contains zone coordinates. If the boundary ever changes, regenerate this one file and restart, both the API and the map pick up the new shapes automatically.
+
+**Generating it**: `scripts/generate_zones.py <boundary.geojson>` takes a single boundary polygon and grid-clip tessellates it into ~28 zones (`--target` to change that). This is a partition by construction: grid cells don't overlap each other, and their union covers exactly the input boundary, so "no gaps, no overlaps" isn't a separate check run after the fact, it's true because of how the shapes are built. Interior cells come out as plain squares; cells that straddle the shoreline get clipped to the actual boundary, which is what gives edge zones their irregular, coastline-following shape. The script refuses to write output if its own post-hoc validation (union area vs. boundary area, pairwise overlap area) doesn't come back clean.
+
+Current status of that boundary file: **placeholder**, built from published bounding coordinates and Dal Lake's known four-basin layout (Gagribal, Lokut Dal, Bod Dal, Nagin), not a traced survey/OSM polygon. See `data/dal_lake_boundary.PLACEHOLDER.geojson`'s own `properties.source` field for exactly what it is and isn't. Replace it and re-run the generator before treating zone boundaries as final.
+
+**Database**: SQLite (`data/plasticnet.db`), three tables in `db_models.py`:
+- `Zone` — one row per polygon, plus live `total_reports`, `pending_reports`, `resolved_reports`, `average_coverage`, `current_risk`
+- `ZoneReportLog` — one row per report ever assigned to a zone, this is what `average_coverage` and the trend calculation are computed from
+- `RiskOverride` — append-only audit trail of authority manual overrides (officer name, reason, timestamp), never edited or deleted
+
+At startup, `load_zones_from_geojson()` upserts every feature into `Zone`: geometry/name/area/centroid always refresh from the file, but stats and risk are left alone for a zone that already exists, so a restart doesn't reset report history. **Known limitation**: Render's free tier disk is ephemeral across a full redeploy (a new build), though it survives a sleep/wake cycle on the same deployment. Zone stats will reset on the next redeploy until this points at a real Postgres instance instead, at which point only `PLASTICNET_DATABASE_URL` needs to change, nothing in `db_models.py` or `zone_service.py` does.
+
+**Point-in-polygon**: Shapely, an in-memory list of `(zone_id, Polygon)` built once at startup and rebuilt whenever zones reload. `find_zone_for_point(lat, lng)` is a linear scan, correct and fast enough at ~28 zones; if the zone count ever grows by an order of magnitude, that's the one function to revisit (an STRtree spatial index, also from Shapely, is the natural next step).
+
+**Risk scoring** (`compute_risk` in `services/zone_service.py`): documented heuristic, not a trained model. No reports ever → white. Otherwise a 0-100 score blends report volume (capped at 5+ reports), average coverage (capped at 10%+), and recency (reports within 7 days score higher than 8-30 days, which score higher than older), mapped onto yellow/orange/red at 35 and 65. An active manual override always wins over the computed score.
+
+Endpoints:
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/api/zones` | GeoJSON FeatureCollection, every zone with live stats in `properties` |
+| `GET` | `/api/zones/{zoneId}` | One zone, plus `trend`, `latestReport`, `authorityRemarks` |
+| `GET` | `/api/zones/{zoneId}/reports` | Every report logged against that zone |
+| `POST` | `/api/zones/assign` | `{latitude, longitude, coveragePercent?, severity?, reportRef?}` → finds the zone, logs the report, returns `{zoneId, zoneName, risk}`. `422` if the point falls outside every zone. |
+| `PATCH` | `/api/zones/{zoneId}/risk` | `{riskLevel, officerName, reason}` → authority override |
+| `PATCH` | `/api/zones/reports/{reportRef}/status` | `{status}` → keeps pending/resolved counts in sync when a report's status changes elsewhere. `{"synced": false}` (not an error) for a `reportRef` this service never logged. |
+
+Frontend never computes a colour or a coordinate: `src/pages/ZoneMapping.jsx` renders `properties.risk` directly, and `src/pages/CitizenReport.jsx` calls `POST /api/zones/assign` automatically during submission (best effort, a failure here never blocks the report itself from going through).
+
 ## Frontend integration
 
 `src/services/api.js` owns the entire integration:
@@ -169,6 +203,7 @@ backend/
   schemas.py                    Pydantic response models
   routes/
     predict.py                  POST /segmentation/run, GET /segmentation/models
+    zones.py                    the six Zone Mapping endpoints, see "Zone Mapping" above
   services/
     model_loader.py             ONNX Runtime + torch-fallback backends, run_inference() picks
                                  automatically based on which weights/best_model_<key>.onnx exist
@@ -179,11 +214,19 @@ backend/
                                  verified against it, so behavior is unchanged either backend runs)
     image_utils.py               colour mask, overlay compositing (single-buffer, region-scoped
                                  blend — not full-frame — see git history for why), output cleanup
+    zone_service.py              GeoJSON loading, point-in-polygon, risk scoring, stats, overrides
   models/                       the four architecture definitions (torch fallback path only)
+  database.py                    SQLAlchemy engine/session, SQLite by default (see "Zone Mapping")
+  db_models.py                   Zone / ZoneReportLog / RiskOverride ORM models
   scripts/
     export_onnx.py               offline .pth -> .onnx conversion with a built-in numerical parity
                                  check; not part of the running service
     requirements-export.txt      onnx + onnxscript, only needed to run export_onnx.py
+    generate_zones.py            boundary polygon -> dal_lake_zones.geojson, see "Zone Mapping"
+  data/
+    dal_lake_zones.geojson       generated zone polygons, the single source of truth for geometry
+    dal_lake_boundary.PLACEHOLDER.geojson   input to generate_zones.py, see "Zone Mapping" for status
+    plasticnet.db                 SQLite file, git-ignored, ephemeral on Render's free tier
   weights/                      best_model_*.pth (all four) + best_model_fastscnn.onnx(.data)
                                  (the deployed default's ONNX export)
   outputs/                      generated mask/overlay PNGs, served at /outputs, auto-cleaned

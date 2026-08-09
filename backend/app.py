@@ -20,6 +20,9 @@ from settings import CORS_ORIGINS, LOG_FILE
 from services.model_loader import preload_active_model, is_loaded
 from services.image_utils import cleanup_expired_outputs
 from routes.predict import router as predict_router
+from routes.zones import router as zones_router
+from database import init_db, SessionLocal
+from services.zone_service import load_zones_from_geojson
 
 LOGS_DIR.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
@@ -37,6 +40,17 @@ async def lifespan(app: FastAPI):
     removed = cleanup_expired_outputs()
     if removed:
         logger.info("Cleaned up %d expired output file(s)", removed)
+
+    init_db()
+    session = SessionLocal()
+    try:
+        zone_count = load_zones_from_geojson(session)
+        logger.info("Zone Mapping ready, %d zones loaded", zone_count)
+    except FileNotFoundError as exc:
+        logger.warning("Zone Mapping not available: %s", exc)
+    finally:
+        session.close()
+
     yield
     logger.info("Shutting down")
 
@@ -59,6 +73,7 @@ app.add_middleware(
 
 app.mount("/outputs", StaticFiles(directory=str(OUTPUTS_DIR)), name="outputs")
 app.include_router(predict_router, prefix="/api")
+app.include_router(zones_router, prefix="/api")
 
 
 @app.get("/api/health")
