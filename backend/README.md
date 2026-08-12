@@ -143,7 +143,9 @@ Divides Dal Lake into monitoring zones, assigns every citizen report to one auto
 
 **Generating it**: `scripts/generate_zones.py <boundary.geojson>` takes a single boundary polygon and grid-clip tessellates it into ~28 zones (`--target` to change that). This is a partition by construction: grid cells don't overlap each other, and their union covers exactly the input boundary, so "no gaps, no overlaps" isn't a separate check run after the fact, it's true because of how the shapes are built. Interior cells come out as plain squares; cells that straddle the shoreline get clipped to the actual boundary, which is what gives edge zones their irregular, coastline-following shape. The script refuses to write output if its own post-hoc validation (union area vs. boundary area, pairwise overlap area) doesn't come back clean.
 
-Current status of that boundary file: **placeholder**, built from published bounding coordinates and Dal Lake's known four-basin layout (Gagribal, Lokut Dal, Bod Dal, Nagin), not a traced survey/OSM polygon. See `data/dal_lake_boundary.PLACEHOLDER.geojson`'s own `properties.source` field for exactly what it is and isn't. Replace it and re-run the generator before treating zone boundaries as final.
+Boundary source: **India-WRIS** (Water Resources Information System, Ministry of Jal Shakti), object id 757, district Srinagar, state JK, obtained via the [india-geodata](https://github.com/yashveeeeeeer/india-geodata) open dataset catalog (CC0). 160-vertex polygon, area 1400.4 hectares, bounds and centroid independently cross-checked against published water-quality literature before being used. This is a real government-sourced boundary, not a traced-by-hand approximation, see `data/dal_lake_boundary.geojson`'s own `properties.source` field for the full citation.
+
+Generating the boundary this way surfaced a real bug in the tessellation, worth noting: the original version dropped any grid-cell intersection smaller than a size threshold, which was fine on a smooth test boundary but left actual gaps once run against the lake's real irregular shoreline (Dal Lake has several narrow inlets and a small detached basin to the southwest). Fixed by merging undersized slivers into a touching neighbor instead of discarding them, `_merge_small_pieces()` in the script. 28 zones, 100% boundary coverage, zero overlaps, confirmed by the script's own validation before it writes anything.
 
 **Database**: SQLite (`data/plasticnet.db`), three tables in `db_models.py`:
 - `Zone` — one row per polygon, plus live `total_reports`, `pending_reports`, `resolved_reports`, `average_coverage`, `current_risk`
@@ -225,7 +227,7 @@ backend/
     generate_zones.py            boundary polygon -> dal_lake_zones.geojson, see "Zone Mapping"
   data/
     dal_lake_zones.geojson       generated zone polygons, the single source of truth for geometry
-    dal_lake_boundary.PLACEHOLDER.geojson   input to generate_zones.py, see "Zone Mapping" for status
+    dal_lake_boundary.geojson     real boundary (India-WRIS via india-geodata), input to generate_zones.py
     plasticnet.db                 SQLite file, git-ignored, ephemeral on Render's free tier
   weights/                      best_model_*.pth (all four) + best_model_fastscnn.onnx(.data)
                                  (the deployed default's ONNX export)

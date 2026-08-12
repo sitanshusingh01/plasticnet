@@ -94,7 +94,7 @@ export default function ZoneMapping() {
   return (
     <div>
       <PageHeader
-        title="GIS Mapping"
+        title="Zone Mapping"
         subtitle="Live monitoring zones across Dal Lake, coloured by backend-computed risk"
       />
 

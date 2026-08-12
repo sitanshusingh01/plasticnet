@@ -79,7 +79,7 @@ backend/
   models/       The four segmentation architectures
   scripts/      generate_zones.py (boundary -> zone polygons), export_onnx.py
   data/         dal_lake_zones.geojson (zone geometry, single source of
-                truth), dal_lake_boundary.PLACEHOLDER.geojson
+                truth), dal_lake_boundary.geojson (real, India-WRIS sourced)
   weights/      Trained checkpoints (tracked in git, ~77 MB total)
 ```
 
@@ -124,7 +124,7 @@ The models are trained on a dataset built specifically for this project: 307 UAV
 
 Dal Lake is divided into monitoring zones (a GeoJSON boundary partitioned into ~28 polygons, see `backend/README.md` for how). Every citizen report is assigned to a zone automatically by its coordinates — a real point-in-polygon lookup, not a dropdown — and each zone tracks its own report count, average coverage, and a risk colour computed from that history. The frontend never calculates a colour or a coordinate; it renders exactly what `GET /api/zones` returns.
 
-**Current status**: the zone *boundaries* are a placeholder — grid-generated from published bounding coordinates and Dal Lake's known basin layout, not a traced survey boundary. The rest of the pipeline (database, point-in-polygon assignment, risk scoring, the map UI, authority overrides) is real and tested. See `backend/README.md`'s "Zone Mapping" section for the full detail, including why SQLite here doesn't survive a Render redeploy yet.
+**Current status**: the zone boundary is real, sourced from India-WRIS (Ministry of Jal Shakti) via the [india-geodata](https://github.com/yashveeeeeeer/india-geodata) open catalog, not hand-approximated. The rest of the pipeline (database, point-in-polygon assignment, risk scoring, the map UI, authority overrides) is real and tested. See `backend/README.md`'s "Zone Mapping" section for the full detail, including the boundary's exact provenance and why SQLite here doesn't survive a Render redeploy yet.
 
 ## API Endpoints
 
@@ -232,7 +232,7 @@ If the frontend is ever served from a new origin, add it to `PLASTICNET_CORS_ORI
 - A managed Postgres database on Render, replacing SQLite for Zone Mapping (currently wiped on redeploy, see `backend/README.md`) and eventually the report store too
 - Live dashboard analytics fed by stored detections rather than sample data
 - Real authentication for the authority dashboard
-- The real, surveyed Dal Lake boundary in place of `data/dal_lake_boundary.PLACEHOLDER.geojson`; a pollution density heatmap layer on top of Zone Mapping
+- A pollution density heatmap layer on top of Zone Mapping's now-real boundary data
 - Authority workflow actions: assigning reports to field teams, attaching cleanup photos
 
 ## Contribution

@@ -76,6 +76,34 @@ def build_grid_cells(boundary, cell_deg_x: float, cell_deg_y: float):
     return cells
 
 
+def _merge_small_pieces(pieces: list, min_area: float) -> list:
+    """A sliver too small to be its own zone gets unioned into whichever
+    neighbor it touches, rather than dropped. Dropping was the original
+    approach and it's wrong: on a simple convex-ish boundary the dropped
+    area was negligible, but a real, irregular shoreline (thin channels,
+    narrow inlets) produces slivers large enough that dropping them left
+    real gaps in the partition. Merging preserves full coverage."""
+    pieces = list(pieces)
+    changed = True
+    while changed:
+        changed = False
+        for i, piece in enumerate(pieces):
+            if piece.area >= min_area:
+                continue
+            probe = piece.buffer(1e-9)
+            for j, other in enumerate(pieces):
+                if i == j:
+                    continue
+                if probe.intersects(other):
+                    merged = make_valid(unary_union([piece, other]))
+                    pieces = [p for k, p in enumerate(pieces) if k not in (i, j)] + [merged]
+                    changed = True
+                    break
+            if changed:
+                break
+    return pieces
+
+
 def tessellate(boundary, target_count: int):
     """Binary-searches the grid cell size until the clipped piece count is
     within +/-2 of target_count, then returns those pieces. A handful of
@@ -101,17 +129,19 @@ def tessellate(boundary, target_count: int):
         avg_cell_area_deg2 = cell_deg_x * cell_deg_y
         min_piece_area_deg2 = avg_cell_area_deg2 * MIN_ZONE_AREA_FRACTION
 
-        pieces = []
+        raw_pieces = []
         for cell in cells:
             if not cell.intersects(boundary):
                 continue
             piece = make_valid(cell.intersection(boundary))
-            if piece.is_empty or piece.area < min_piece_area_deg2:
+            if piece.is_empty or piece.area < 1e-12:
                 continue
             if piece.geom_type == "MultiPolygon":
-                pieces.extend(g for g in piece.geoms if g.area >= min_piece_area_deg2)
+                raw_pieces.extend(g for g in piece.geoms if g.area >= 1e-12)
             elif piece.geom_type == "Polygon":
-                pieces.append(piece)
+                raw_pieces.append(piece)
+
+        pieces = _merge_small_pieces(raw_pieces, min_piece_area_deg2)
 
         diff = len(pieces) - target_count
         if best_diff is None or abs(diff) < abs(best_diff):

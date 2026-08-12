@@ -74,7 +74,7 @@ export default function AppRoutes() {
               />
             }
           />
-          <Route path="/gis-mapping" element={<ZoneMapping />} />
+          <Route path="/zone-mapping" element={<ZoneMapping />} />
           <Route
             path="/validation"
             element={

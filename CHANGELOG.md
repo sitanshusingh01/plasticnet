@@ -98,3 +98,53 @@ production application backed by the deployed inference service.
   and publish on push to `main`) and Render (start command bound to
   `$PORT`, RAM guidance, cold-start behaviour, CORS configuration)
 - No changes to `.github/workflows/deploy.yml` were required
+
+## Zone Mapping release — August 2026
+
+### Files added
+
+- `backend/database.py`, `backend/db_models.py` — SQLite via SQLAlchemy,
+  three tables: `Zone`, `ZoneReportLog`, `RiskOverride`
+- `backend/services/zone_service.py` — point-in-polygon assignment, risk
+  scoring, stats maintenance, override handling
+- `backend/routes/zones.py` — six endpoints, see `backend/README.md`
+- `backend/scripts/generate_zones.py` — boundary polygon to zone GeoJSON,
+  grid-clip tessellation with sliver-merging (see below)
+- `backend/data/dal_lake_zones.geojson` — 28 generated zones, the single
+  source of truth for zone geometry
+- `backend/data/dal_lake_boundary.geojson` — the real Dal Lake boundary,
+  India-WRIS (Ministry of Jal Shakti) via the
+  [india-geodata](https://github.com/yashveeeeeeer/india-geodata) open
+  dataset catalog, CC0. Not hand-drawn or approximated.
+- `src/pages/ZoneMapping.jsx` — replaces the old GIS Mapping placeholder
+
+### Files modified
+
+- `src/services/api.js` — zone API functions added; `updateReportStatus`
+  now also syncs a zone's pending/resolved counts
+- `src/pages/CitizenReport.jsx` — calls automatic zone assignment during
+  submission, best effort, never blocks the report itself
+- `src/routes/AppRoutes.jsx`, `src/components/layout/Sidebar.jsx` — route
+  and nav label renamed from "GIS Mapping" to "Zone Mapping"
+  (`/gis-mapping` -> `/zone-mapping`)
+- `backend/app.py` — database init and zone GeoJSON load added to startup
+- Both READMEs — full "Zone Mapping" section added
+
+### Bug fixed before this shipped
+
+`generate_zones.py`'s original tessellation dropped any grid-cell
+intersection below a size threshold. That was invisible on a smooth test
+boundary but produced real gaps once run against Dal Lake's actual
+shoreline, which has several narrow inlets and a small detached basin.
+Fixed by merging undersized pieces into a touching neighbor instead of
+discarding them. Final output: 28 zones, 100% boundary coverage, zero
+overlaps, verified by the script's own validation step before it writes
+anything.
+
+### Known limitation, not silently shipped
+
+SQLite (`backend/data/plasticnet.db`) does not survive a Render free-tier
+redeploy, the disk is ephemeral across a new build (it does survive a
+sleep/wake cycle on the same deployment). Zone report history and stats
+will reset on the next redeploy until `PLASTICNET_DATABASE_URL` points at
+a managed Postgres instance instead.

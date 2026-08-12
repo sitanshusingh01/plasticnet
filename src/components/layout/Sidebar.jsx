@@ -22,7 +22,7 @@ const NAV_ITEMS = [
   { to: '/regression', label: 'Regression Analysis', icon: TrendingUp, ready: false },
   { to: '/live-camera', label: 'Live Camera', icon: Video, ready: false },
   { to: '/media-processing', label: 'Image and Video Processing', icon: Film, ready: false },
-  { to: '/gis-mapping', label: 'GIS Mapping', icon: Map, ready: true },
+  { to: '/zone-mapping', label: 'Zone Mapping', icon: Map, ready: true },
   { to: '/validation', label: 'Validation', icon: BadgeCheck, ready: false },
   { to: '/reports', label: 'Reports and Export', icon: FileOutput, ready: true }
 ]
